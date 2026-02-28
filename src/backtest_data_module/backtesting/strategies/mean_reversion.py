@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from typing import List
 
@@ -9,14 +9,25 @@ from backtest_data_module.backtesting.strategy import StrategyBase
 
 
 class MeanReversion(StrategyBase):
-    def __init__(self, window: int = 20, threshold: float = 1.5):
-        super().__init__({})
+    def __init__(
+        self,
+        window: int = 20,
+        threshold: float = 1.5,
+        params: dict | None = None,
+    ):
+        merged = dict(params or {})
+        window = int(merged.get("window", window))
+        threshold = float(merged.get("threshold", threshold))
+        if window <= 0:
+            raise ValueError("window must be positive")
+
+        super().__init__({"window": window, "threshold": threshold})
         self.window = window
         self.threshold = threshold
 
     def on_data(self, data: pl.DataFrame) -> List[SignalEvent]:
         signals = []
-        for asset in data["asset"].unique():
+        for asset in data["asset"].unique().to_list():
             asset_data = data.filter(pl.col("asset") == asset)
 
             # Calculate rolling mean and std

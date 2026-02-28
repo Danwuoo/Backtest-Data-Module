@@ -98,7 +98,7 @@ class RedisRateLimiter:
 
     @property
     def remaining_tokens(self) -> float:
-        return self.tokens
+        return self._tokens
 
 
 __all__ = ["RedisRateLimiter"]

@@ -5,7 +5,7 @@ from prefect import flow, get_run_logger
 from prefect.deployments import DeploymentSpec
 from prefect.orion.schemas.schedules import CronSchedule
 
-from data_storage.storage_backend import HybridStorageManager
+from backtest_data_module.data_storage.storage_backend import HybridStorageManager
 
 # 從配置檔讀取排程
 try:

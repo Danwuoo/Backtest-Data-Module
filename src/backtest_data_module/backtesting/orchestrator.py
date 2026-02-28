@@ -1,9 +1,10 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
+import importlib
 import json
 import os
-from typing import List, Type
 from pathlib import Path
+from typing import Any, Callable, List, Type
 
 import httpx
 import pandas as pd
@@ -15,19 +16,28 @@ from backtest_data_module.backtesting.execution import Execution
 from backtest_data_module.backtesting.performance import Performance
 from backtest_data_module.backtesting.portfolio import Portfolio
 from backtest_data_module.backtesting.strategy import StrategyBase
-from backtest_data_module.strategy_manager.registry import strategy_registry
 from backtest_data_module.data_handler import DataHandler
 from backtest_data_module.data_processing.cross_validation import (
     combinatorial_purged_cv,
     walk_forward_split,
 )
 from backtest_data_module.reporting.report import ReportGen
+from backtest_data_module.strategy_manager.registry import strategy_registry
 from backtest_data_module.utils.json_encoder import CustomJSONEncoder
+
+
+def _load_strategy_cls(strategy_module: str, strategy_class: str) -> Type[StrategyBase]:
+    module = importlib.import_module(strategy_module)
+    strategy_cls = getattr(module, strategy_class)
+    if not isinstance(strategy_cls, type) or not issubclass(strategy_cls, StrategyBase):
+        raise TypeError(f"{strategy_class} is not a StrategyBase subclass")
+    return strategy_cls
 
 
 @ray.remote
 def run_backtest_slice(
-    strategy_name: str,
+    strategy_module: str,
+    strategy_class: str,
     portfolio_cls: Type[Portfolio],
     execution_cls: Type[Execution],
     performance_cls: Type[Performance],
@@ -41,7 +51,7 @@ def run_backtest_slice(
     """
     在獨立的 Ray 程序中執行單一回測切片。
     """
-    strategy_cls = strategy_registry.get_strategy(strategy_name)
+    strategy_cls = _load_strategy_cls(strategy_module, strategy_class)
     strategy = strategy_cls(**strategy_params)
     portfolio = portfolio_cls(**portfolio_params)
     execution = execution_cls(**execution_params)
@@ -70,21 +80,33 @@ class Orchestrator:
     def __init__(
         self,
         data_handler: DataHandler,
-        strategy_name: str,
         portfolio_cls: Type[Portfolio],
         execution_cls: Type[Execution],
         performance_cls: Type[Performance],
-        register_api: str = None,
+        strategy_name: str | None = None,
+        strategy_cls: Type[StrategyBase] | None = None,
+        register_api: str | None = None,
     ):
+        if strategy_cls is None and strategy_name is None:
+            raise ValueError("Either strategy_name or strategy_cls must be provided")
+
         self.data_handler = data_handler
-        self.strategy_name = strategy_name
-        self.strategy_cls = strategy_registry.get_strategy(strategy_name)
+        self.strategy_cls = strategy_cls or self._resolve_strategy_cls(strategy_name)
+        self.strategy_name = strategy_name or self.strategy_cls.__name__
+
+        # 允許透過名稱查詢策略，同時避免重複註冊報錯
+        try:
+            strategy_registry.register(self.strategy_name, self.strategy_cls)
+        except ValueError:
+            pass
+
         self.portfolio_cls = portfolio_cls
         self.execution_cls = execution_cls
         self.performance_cls = performance_cls
-        self.results = {}
-        self.run_id = None
-        self.hyperparams = None
+        self.results: dict[str, Any] = {}
+        self.run_id: str | None = None
+        self.hyperparams: dict[str, Any] | None = None
+        self.config: dict[str, Any] = {}
         self.register_api = register_api
         if self.register_api:
             self.api_client = httpx.Client(
@@ -94,9 +116,41 @@ class Orchestrator:
         else:
             self.api_client = None
 
-    def _create_run(self, orchestrator_type: str):
+    def _resolve_strategy_cls(self, strategy_name: str | None) -> Type[StrategyBase]:
+        if strategy_name is None:
+            raise ValueError("strategy_name is required")
+
+        try:
+            return strategy_registry.get_strategy(strategy_name)
+        except ValueError:
+            builtin_modules = {
+                "SmaCrossover": (
+                    "backtest_data_module.backtesting.strategies.sma_crossover",
+                    "SmaCrossover",
+                ),
+                "MeanReversion": (
+                    "backtest_data_module.backtesting.strategies.mean_reversion",
+                    "MeanReversion",
+                ),
+            }
+            if strategy_name not in builtin_modules:
+                raise
+
+            module_name, class_name = builtin_modules[strategy_name]
+            return _load_strategy_cls(module_name, class_name)
+
+    @staticmethod
+    def _build_component(factory: Callable[..., Any], params: dict[str, Any]) -> Any:
+        try:
+            return factory(**params)
+        except TypeError:
+            if params:
+                raise
+            return factory()
+
+    def _create_run(self, orchestrator_type: str, configured_run_id: str | None = None):
         if not self.register_api:
-            self.run_id = f"local-run-{os.urandom(4).hex()}"
+            self.run_id = configured_run_id or f"local-run-{os.urandom(4).hex()}"
             return
         response = self.api_client.post(
             "/runs",
@@ -140,7 +194,7 @@ class Orchestrator:
                 test_size=wf_config["test_period"],
                 step_size=wf_config["step_size"],
             )
-        elif "cpcv" in config:
+        if "cpcv" in config:
             cpcv_config = config["cpcv"]
             n_samples = len(data)
             embargo_pct = cpcv_config.get("embargo_pct", 0.0)
@@ -151,13 +205,15 @@ class Orchestrator:
                 n_test_splits=cpcv_config["k"],
                 embargo=embargo,
             )
-        else:
-            raise ValueError("No valid configuration found for walk_forward or cpcv")
+        raise ValueError("No valid configuration found for walk_forward or cpcv")
 
     def run(self, config: dict, data: pd.DataFrame) -> List[dict]:
         self.hyperparams = config.get("strategy_params", {})
         self.config = config
-        self._create_run("walk_forward" if "walk_forward" in config else "cpcv")
+        self._create_run(
+            "walk_forward" if "walk_forward" in config else "cpcv",
+            configured_run_id=config.get("run_id"),
+        )
         self._update_run_status("RUNNING")
 
         try:
@@ -169,8 +225,12 @@ class Orchestrator:
                 test_data = data.iloc[test_indices]
 
                 strategy = self.strategy_cls(**self.hyperparams)
-                portfolio = self.portfolio_cls(**config.get("portfolio_params", {}))
-                execution = self.execution_cls(**config.get("execution_params", {}))
+                portfolio = self._build_component(
+                    self.portfolio_cls, config.get("portfolio_params", {})
+                )
+                execution = self._build_component(
+                    self.execution_cls, config.get("execution_params", {})
+                )
                 performance = self.performance_cls()
 
                 backtest = Backtest(
@@ -204,11 +264,26 @@ class Orchestrator:
     def run_ray(self, config: dict, data: pd.DataFrame) -> List[dict]:
         self.hyperparams = config.get("strategy_params", {})
         self.config = config
-        self._create_run("walk_forward" if "walk_forward" in config else "cpcv")
+        self._create_run(
+            "walk_forward" if "walk_forward" in config else "cpcv",
+            configured_run_id=config.get("run_id"),
+        )
         self._update_run_status("RUNNING")
 
         try:
-            ray.init(ignore_reinit_error=True)
+            pythonpath_entries = []
+            existing_pythonpath = os.environ.get("PYTHONPATH")
+            if existing_pythonpath:
+                pythonpath_entries.append(existing_pythonpath)
+            pythonpath_entries.append(str(Path.cwd() / "src"))
+            ray.init(
+                ignore_reinit_error=True,
+                runtime_env={
+                    "env_vars": {
+                        "PYTHONPATH": os.pathsep.join(pythonpath_entries)
+                    }
+                },
+            )
 
             results_refs = []
             slices = self._get_slices(config, data)
@@ -219,7 +294,8 @@ class Orchestrator:
 
                 results_refs.append(
                     run_backtest_slice.remote(
-                        self.strategy_name,
+                        self.strategy_cls.__module__,
+                        self.strategy_cls.__name__,
                         self.portfolio_cls,
                         self.execution_cls,
                         self.performance_cls,
@@ -245,7 +321,9 @@ class Orchestrator:
             raise
 
     def to_json(self, filepath: str):
-        with open(filepath, "w") as f:
+        output_path = Path(filepath)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        with output_path.open("w", encoding="utf-8") as f:
             json.dump(self.results, f, indent=4, cls=CustomJSONEncoder)
 
     def generate_reports(self, output_dir: str = "."):
@@ -256,15 +334,18 @@ class Orchestrator:
             self.run_id,
             self.results,
             self.strategy_cls.__name__,
-            self.config.get("hyperparameters", {}),
+            self.config.get("strategy_params", {}),
         )
+
+        output_path = Path(output_dir)
+        output_path.mkdir(parents=True, exist_ok=True)
 
         # 產生 JSON 報告
         json_report = report_gen.generate_json()
-        json_filepath = f"{output_dir}/{self.run_id}_report.json"
-        with open(json_filepath, "w") as f:
+        json_filepath = output_path / f"{self.run_id}_report.json"
+        with json_filepath.open("w", encoding="utf-8") as f:
             f.write(json_report)
 
         # 產生 PDF 報告
-        pdf_filepath = Path(f"{output_dir}/{self.run_id}_report.pdf")
+        pdf_filepath = output_path / f"{self.run_id}_report.pdf"
         report_gen.generate_pdf(pdf_filepath)

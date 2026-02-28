@@ -1,8 +1,9 @@
 import asyncio
-from data_ingestion.py.api_client import ApiClient
-from data_ingestion.py.rate_limiter import RateLimiter
-from data_ingestion.py.caching import LRUCache
-from data_ingestion.py.data_source import APIDataSource
+
+from backtest_data_module.data_ingestion.py.api_client import ApiClient
+from backtest_data_module.data_ingestion.py.caching import LRUCache
+from backtest_data_module.data_ingestion.py.data_source import APIDataSource
+from backtest_data_module.data_ingestion.py.rate_limiter import RateLimiter
 
 
 async def main():

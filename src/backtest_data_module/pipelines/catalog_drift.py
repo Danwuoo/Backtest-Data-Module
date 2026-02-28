@@ -3,9 +3,10 @@ from prefect.deployments import DeploymentSpec
 from prefect.orion.schemas.schedules import CronSchedule
 
 import os
-from data_storage.storage_backend import HybridStorageManager
-from data_storage.catalog import check_drift
-from utils.notify import SlackNotifier
+
+from backtest_data_module.data_storage.storage_backend import HybridStorageManager
+from backtest_data_module.data_storage.catalog import check_drift
+from backtest_data_module.utils.notify import SlackNotifier
 
 
 @flow

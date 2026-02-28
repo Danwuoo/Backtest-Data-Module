@@ -1,13 +1,14 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections import deque
-from datetime import timedelta
-from typing import Dict, List
+from datetime import date, datetime, timedelta
+from numbers import Real
+from typing import Any, Dict, List
 
 import numpy as np
 
-from backtest_data_module.backtesting.events import OrderEvent, FillEvent
+from backtest_data_module.backtesting.events import FillEvent, OrderEvent
 
 
 class CommissionModel(ABC):
@@ -26,7 +27,7 @@ class FlatCommission(CommissionModel):
 
 class SlippageModel(ABC):
     @abstractmethod
-    def apply(self, price: float, quantity: float) -> float:
+    def apply(self, price: Any, quantity: float) -> float:
         pass
 
 
@@ -36,10 +37,10 @@ class GaussianSlippage(SlippageModel):
         self.sigma = sigma
         self.rng = np.random.default_rng(seed)
 
-    def apply(self, price: float, quantity: float) -> float:
-        # Simulate slippage based on a normal distribution
-        # A more advanced model could also consider the order size (quantity)
-        return price["close"] * (1 + self.rng.normal(self.mu, self.sigma))
+    def apply(self, price: Any, quantity: float) -> float:
+        # 支援直接價格值與 {"close": price} 兩種輸入格式
+        base_price = price.get("close") if isinstance(price, dict) else price
+        return float(base_price) * (1 + self.rng.normal(self.mu, self.sigma))
 
 
 class LatencyModel(ABC):
@@ -68,25 +69,43 @@ class Execution:
         self.latency_model = latency_model
         self.order_queue = deque()
 
-    def place_order(self, order: OrderEvent, timestamp: float):
+    def _normalize_time(self, value: Real | date | datetime) -> float | datetime:
+        if isinstance(value, datetime):
+            return value
+        if isinstance(value, date):
+            return datetime.combine(value, datetime.min.time())
+        return float(value)
+
+    def _execution_time(self, timestamp: Real | date | datetime, delay: float):
+        normalized = self._normalize_time(timestamp)
+        if isinstance(normalized, datetime):
+            return normalized + timedelta(seconds=delay)
+        return normalized + float(delay)
+
+    def place_order(self, order: OrderEvent, timestamp: Real | date | datetime):
         delay = self.latency_model.get_delay()
-        execution_time = timestamp + timedelta(seconds=delay)
+        execution_time = self._execution_time(timestamp, delay)
         self.order_queue.append((order, execution_time))
 
     def process_orders(
-        self, current_time: float, price_data: Dict[str, float]
+        self,
+        current_time: Real | date | datetime,
+        price_data: Dict[str, Any],
     ) -> List[FillEvent]:
         fills = []
+        current_cmp = self._normalize_time(current_time)
 
         # 依執行時間排序訂單以維持 FIFO
         self.order_queue = deque(sorted(self.order_queue, key=lambda x: x[1]))
 
-        while self.order_queue and self.order_queue[0][1] <= current_time:
-            order, execution_time = self.order_queue.popleft()
+        while (
+            self.order_queue
+            and self._normalize_time(self.order_queue[0][1]) <= current_cmp
+        ):
+            order, _execution_time = self.order_queue.popleft()
 
             if order.asset not in price_data:
                 # 若該資產無價格資料則略過
-                # 目前僅直接跳過該訂單
                 continue
 
             price = price_data[order.asset]

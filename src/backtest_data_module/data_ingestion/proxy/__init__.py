@@ -9,9 +9,11 @@ from fastapi.responses import Response
 import httpx
 from tenacity import AsyncRetrying, wait_random_exponential, stop_after_attempt
 
-from data_ingestion.py.rate_limiter import RateLimiter
-from data_ingestion.py.redis_rate_limiter import RedisRateLimiter
-from data_ingestion.py.caching import ICache, LRUCache
+from backtest_data_module.data_ingestion.py.rate_limiter import RateLimiter
+from backtest_data_module.data_ingestion.py.redis_rate_limiter import (
+    RedisRateLimiter,
+)
+from backtest_data_module.data_ingestion.py.caching import ICache, LRUCache
 
 
 logger = logging.getLogger(__name__)

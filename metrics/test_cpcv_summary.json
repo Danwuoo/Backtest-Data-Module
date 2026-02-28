@@ -1,0 +1,680 @@
+{
+    "run_id": "test_cpcv",
+    "slices": [
+        {
+            "slice_id": 0,
+            "train_start": "2020-02-12T00:00:00",
+            "train_end": "2020-07-18T00:00:00",
+            "test_start": "2020-01-01T00:00:00",
+            "test_end": "2020-02-09T00:00:00",
+            "metrics": {
+                "total_return": 0.059004749111927435,
+                "sharpe": 2.5951884286328717,
+                "sortino": 136.53772252110812,
+                "max_drawdown": -0.018556146022932266,
+                "max_drawdown_duration": 4,
+                "var_95_cornish_fisher": -0.01171910276504128
+            }
+        },
+        {
+            "slice_id": 1,
+            "train_start": "2020-01-23T00:00:00",
+            "train_end": "2020-07-18T00:00:00",
+            "test_start": "2020-01-01T00:00:00",
+            "test_end": "2020-02-29T00:00:00",
+            "metrics": {
+                "total_return": 0.0790208829943424,
+                "sharpe": 3.6671333705186697,
+                "sortino": 89.51764338999402,
+                "max_drawdown": -0.01855947729224536,
+                "max_drawdown_duration": 4,
+                "var_95_cornish_fisher": -0.010666499209920594
+            }
+        },
+        {
+            "slice_id": 2,
+            "train_start": "2020-01-23T00:00:00",
+            "train_end": "2020-07-18T00:00:00",
+            "test_start": "2020-01-01T00:00:00",
+            "test_end": "2020-03-20T00:00:00",
+            "metrics": {
+                "total_return": 0.09898828264605197,
+                "sharpe": 4.344177506914402,
+                "sortino": 76.20421620717933,
+                "max_drawdown": -0.018552542885456776,
+                "max_drawdown_duration": 4,
+                "var_95_cornish_fisher": -0.0125958278163689
+            }
+        },
+        {
+            "slice_id": 3,
+            "train_start": "2020-01-23T00:00:00",
+            "train_end": "2020-07-18T00:00:00",
+            "test_start": "2020-01-01T00:00:00",
+            "test_end": "2020-04-09T00:00:00",
+            "metrics": {
+                "total_return": 0.11901387365911531,
+                "sharpe": 4.519342061546982,
+                "sortino": 69.70959695227216,
+                "max_drawdown": -0.01855679999922837,
+                "max_drawdown_duration": 4,
+                "var_95_cornish_fisher": -0.018899266141669067
+            }
+        },
+        {
+            "slice_id": 4,
+            "train_start": "2020-01-23T00:00:00",
+            "train_end": "2020-07-18T00:00:00",
+            "test_start": "2020-01-01T00:00:00",
+            "test_end": "2020-04-29T00:00:00",
+            "metrics": {
+                "total_return": 0.138992716653199,
+                "sharpe": 4.416259890833578,
+                "sortino": 66.11064551236328,
+                "max_drawdown": -0.018553738053691208,
+                "max_drawdown_duration": 4,
+                "var_95_cornish_fisher": -0.02631793515531814
+            }
+        },
+        {
+            "slice_id": 5,
+            "train_start": "2020-01-23T00:00:00",
+            "train_end": "2020-07-18T00:00:00",
+            "test_start": "2020-01-01T00:00:00",
+            "test_end": "2020-05-19T00:00:00",
+            "metrics": {
+                "total_return": 0.15900542663014727,
+                "sharpe": 4.229272561154901,
+                "sortino": 63.9597691134188,
+                "max_drawdown": -0.01855530592414762,
+                "max_drawdown_duration": 4,
+                "var_95_cornish_fisher": -0.03324350532740507
+            }
+        },
+        {
+            "slice_id": 6,
+            "train_start": "2020-01-23T00:00:00",
+            "train_end": "2020-07-18T00:00:00",
+            "test_start": "2020-01-01T00:00:00",
+            "test_end": "2020-06-08T00:00:00",
+            "metrics": {
+                "total_return": 0.17903234496351028,
+                "sharpe": 4.040546617168072,
+                "sortino": 62.651676435339766,
+                "max_drawdown": -0.01855796170210173,
+                "max_drawdown_duration": 4,
+                "var_95_cornish_fisher": -0.039685833451034935
+            }
+        },
+        {
+            "slice_id": 7,
+            "train_start": "2020-01-23T00:00:00",
+            "train_end": "2020-07-18T00:00:00",
+            "test_start": "2020-01-01T00:00:00",
+            "test_end": "2020-06-28T00:00:00",
+            "metrics": {
+                "total_return": 0.19902818956648205,
+                "sharpe": 3.874033270807774,
+                "sortino": 61.88613209158117,
+                "max_drawdown": -0.01855725427361556,
+                "max_drawdown_duration": 4,
+                "var_95_cornish_fisher": -0.04589099536646228
+            }
+        },
+        {
+            "slice_id": 8,
+            "train_start": "2020-01-23T00:00:00",
+            "train_end": "2020-06-26T00:00:00",
+            "test_start": "2020-01-01T00:00:00",
+            "test_end": "2020-07-18T00:00:00",
+            "metrics": {
+                "total_return": 0.21899173745907774,
+                "sharpe": 3.73298580524437,
+                "sortino": 61.48427704170604,
+                "max_drawdown": -0.018554003866115797,
+                "max_drawdown_duration": 4,
+                "var_95_cornish_fisher": -0.05201675245739848
+            }
+        },
+        {
+            "slice_id": 9,
+            "train_start": "2020-01-01T00:00:00",
+            "train_end": "2020-07-18T00:00:00",
+            "test_start": "2020-01-21T00:00:00",
+            "test_end": "2020-02-29T00:00:00",
+            "metrics": {
+                "total_return": 0.05899842885664697,
+                "sharpe": 2.5951788084820735,
+                "sortino": 136.5512531648014,
+                "max_drawdown": -0.018554204977288685,
+                "max_drawdown_duration": 4,
+                "var_95_cornish_fisher": -0.011717885065695146
+            }
+        },
+        {
+            "slice_id": 10,
+            "train_start": "2020-01-01T00:00:00",
+            "train_end": "2020-07-18T00:00:00",
+            "test_start": "2020-01-21T00:00:00",
+            "test_end": "2020-03-20T00:00:00",
+            "metrics": {
+                "total_return": 0.07902112911729331,
+                "sharpe": 3.6671336521670104,
+                "sortino": 89.51738533305645,
+                "max_drawdown": -0.01855953374346081,
+                "max_drawdown_duration": 4,
+                "var_95_cornish_fisher": -0.010666531158393881
+            }
+        },
+        {
+            "slice_id": 11,
+            "train_start": "2020-01-01T00:00:00",
+            "train_end": "2020-07-18T00:00:00",
+            "test_start": "2020-01-21T00:00:00",
+            "test_end": "2020-04-09T00:00:00",
+            "metrics": {
+                "total_return": 0.09902390814282036,
+                "sharpe": 4.344209608151272,
+                "sortino": 76.17901824835188,
+                "max_drawdown": -0.018559063344459236,
+                "max_drawdown_duration": 4,
+                "var_95_cornish_fisher": -0.012600164925142043
+            }
+        },
+        {
+            "slice_id": 12,
+            "train_start": "2020-01-01T00:00:00",
+            "train_end": "2020-07-18T00:00:00",
+            "test_start": "2020-01-21T00:00:00",
+            "test_end": "2020-04-29T00:00:00",
+            "metrics": {
+                "total_return": 0.11900496109604464,
+                "sharpe": 4.51933681279954,
+                "sortino": 69.71434438052502,
+                "max_drawdown": -0.018555442912099696,
+                "max_drawdown_duration": 4,
+                "var_95_cornish_fisher": -0.01889790810821324
+            }
+        },
+        {
+            "slice_id": 13,
+            "train_start": "2020-01-01T00:00:00",
+            "train_end": "2020-07-18T00:00:00",
+            "test_start": "2020-01-21T00:00:00",
+            "test_end": "2020-05-19T00:00:00",
+            "metrics": {
+                "total_return": 0.1389697947735511,
+                "sharpe": 4.4162527888994925,
+                "sortino": 66.12043723037424,
+                "max_drawdown": -0.018550749976168797,
+                "max_drawdown_duration": 4,
+                "var_95_cornish_fisher": -0.02631377283786978
+            }
+        },
+        {
+            "slice_id": 14,
+            "train_start": "2020-01-01T00:00:00",
+            "train_end": "2020-07-18T00:00:00",
+            "test_start": "2020-01-21T00:00:00",
+            "test_end": "2020-06-08T00:00:00",
+            "metrics": {
+                "total_return": 0.15901129945847892,
+                "sharpe": 4.229273280891278,
+                "sortino": 63.95767682901055,
+                "max_drawdown": -0.01855597519636762,
+                "max_drawdown_duration": 4,
+                "var_95_cornish_fisher": -0.03324468034443319
+            }
+        },
+        {
+            "slice_id": 15,
+            "train_start": "2020-01-01T00:00:00",
+            "train_end": "2020-07-18T00:00:00",
+            "test_start": "2020-01-21T00:00:00",
+            "test_end": "2020-06-28T00:00:00",
+            "metrics": {
+                "total_return": 0.17900792210803207,
+                "sharpe": 4.040546344995212,
+                "sortino": 62.65913929902044,
+                "max_drawdown": -0.018555489438320544,
+                "max_drawdown_duration": 4,
+                "var_95_cornish_fisher": -0.03968066019369181
+            }
+        },
+        {
+            "slice_id": 16,
+            "train_start": "2020-01-01T00:00:00",
+            "train_end": "2020-06-26T00:00:00",
+            "test_start": "2020-01-21T00:00:00",
+            "test_end": "2020-07-18T00:00:00",
+            "metrics": {
+                "total_return": 0.19901727130668112,
+                "sharpe": 3.8740338379512393,
+                "sortino": 61.88905294990672,
+                "max_drawdown": -0.018556260124088765,
+                "max_drawdown_duration": 4,
+                "var_95_cornish_fisher": -0.045888591157571657
+            }
+        },
+        {
+            "slice_id": 17,
+            "train_start": "2020-01-01T00:00:00",
+            "train_end": "2020-07-18T00:00:00",
+            "test_start": "2020-02-10T00:00:00",
+            "test_end": "2020-03-20T00:00:00",
+            "metrics": {
+                "total_return": 0.058991231340649986,
+                "sharpe": 2.5951678529801594,
+                "sortino": 136.5666654148192,
+                "max_drawdown": -0.018551994499788622,
+                "max_drawdown_duration": 4,
+                "var_95_cornish_fisher": -0.011716498338442136
+            }
+        },
+        {
+            "slice_id": 18,
+            "train_start": "2020-01-01T00:00:00",
+            "train_end": "2020-07-18T00:00:00",
+            "test_start": "2020-02-10T00:00:00",
+            "test_end": "2020-04-09T00:00:00",
+            "metrics": {
+                "total_return": 0.07898687051850817,
+                "sharpe": 3.6670944480122873,
+                "sortino": 89.55332053395807,
+                "max_drawdown": -0.018551676048567903,
+                "max_drawdown_duration": 4,
+                "var_95_cornish_fisher": -0.010662084081121763
+            }
+        },
+        {
+            "slice_id": 19,
+            "train_start": "2020-01-01T00:00:00",
+            "train_end": "2020-07-18T00:00:00",
+            "test_start": "2020-02-10T00:00:00",
+            "test_end": "2020-04-29T00:00:00",
+            "metrics": {
+                "total_return": 0.0989868506674092,
+                "sharpe": 4.344176216565069,
+                "sortino": 76.20522942676897,
+                "max_drawdown": -0.018552280791148065,
+                "max_drawdown_duration": 4,
+                "var_95_cornish_fisher": -0.012595653482057503
+            }
+        },
+        {
+            "slice_id": 20,
+            "train_start": "2020-01-01T00:00:00",
+            "train_end": "2020-07-18T00:00:00",
+            "test_start": "2020-02-10T00:00:00",
+            "test_end": "2020-05-19T00:00:00",
+            "metrics": {
+                "total_return": 0.11901692343708437,
+                "sharpe": 4.5193438575939044,
+                "sortino": 69.70797259948873,
+                "max_drawdown": -0.01855726437795344,
+                "max_drawdown_duration": 4,
+                "var_95_cornish_fisher": -0.01889973084343276
+            }
+        },
+        {
+            "slice_id": 21,
+            "train_start": "2020-01-01T00:00:00",
+            "train_end": "2020-07-18T00:00:00",
+            "test_start": "2020-02-10T00:00:00",
+            "test_end": "2020-06-08T00:00:00",
+            "metrics": {
+                "total_return": 0.13904110666127534,
+                "sharpe": 4.41627488282695,
+                "sortino": 66.08998497742742,
+                "max_drawdown": -0.0185600460597993,
+                "max_drawdown_duration": 4,
+                "var_95_cornish_fisher": -0.026326721972821345
+            }
+        },
+        {
+            "slice_id": 22,
+            "train_start": "2020-01-01T00:00:00",
+            "train_end": "2020-07-18T00:00:00",
+            "test_start": "2020-02-10T00:00:00",
+            "test_end": "2020-06-28T00:00:00",
+            "metrics": {
+                "total_return": 0.15897345251313522,
+                "sharpe": 4.229268642504906,
+                "sortino": 63.97116309045536,
+                "max_drawdown": -0.01855166210783778,
+                "max_drawdown_duration": 4,
+                "var_95_cornish_fisher": -0.033237107982144874
+            }
+        },
+        {
+            "slice_id": 23,
+            "train_start": "2020-01-01T00:00:00",
+            "train_end": "2020-06-26T00:00:00",
+            "test_start": "2020-02-10T00:00:00",
+            "test_end": "2020-07-18T00:00:00",
+            "metrics": {
+                "total_return": 0.17902040703687305,
+                "sharpe": 4.04054648412943,
+                "sortino": 62.655324039430866,
+                "max_drawdown": -0.01855675325801019,
+                "max_drawdown_duration": 4,
+                "var_95_cornish_fisher": -0.03968330476310256
+            }
+        },
+        {
+            "slice_id": 24,
+            "train_start": "2020-01-01T00:00:00",
+            "train_end": "2020-07-18T00:00:00",
+            "test_start": "2020-03-01T00:00:00",
+            "test_end": "2020-04-09T00:00:00",
+            "metrics": {
+                "total_return": 0.059003811863131306,
+                "sharpe": 2.5951870020362118,
+                "sortino": 136.53972883592692,
+                "max_drawdown": -0.01855585818031802,
+                "max_drawdown_duration": 4,
+                "var_95_cornish_fisher": -0.01171892218940012
+            }
+        },
+        {
+            "slice_id": 25,
+            "train_start": "2020-01-01T00:00:00",
+            "train_end": "2020-07-18T00:00:00",
+            "test_start": "2020-03-01T00:00:00",
+            "test_end": "2020-04-29T00:00:00",
+            "metrics": {
+                "total_return": 0.07900646534577827,
+                "sharpe": 3.667116871705032,
+                "sortino": 89.53276292712093,
+                "max_drawdown": -0.018556170419308668,
+                "max_drawdown_duration": 4,
+                "var_95_cornish_fisher": -0.010664627685557296
+            }
+        },
+        {
+            "slice_id": 26,
+            "train_start": "2020-01-01T00:00:00",
+            "train_end": "2020-07-18T00:00:00",
+            "test_start": "2020-03-01T00:00:00",
+            "test_end": "2020-05-19T00:00:00",
+            "metrics": {
+                "total_return": 0.09900710914273514,
+                "sharpe": 4.344194471171593,
+                "sortino": 76.1908979422474,
+                "max_drawdown": -0.018555988672859836,
+                "max_drawdown_duration": 4,
+                "var_95_cornish_fisher": -0.012598119802817668
+            }
+        },
+        {
+            "slice_id": 27,
+            "train_start": "2020-01-01T00:00:00",
+            "train_end": "2020-07-18T00:00:00",
+            "test_start": "2020-03-01T00:00:00",
+            "test_end": "2020-06-08T00:00:00",
+            "metrics": {
+                "total_return": 0.11900567068138623,
+                "sharpe": 4.519337230687795,
+                "sortino": 69.713966381771,
+                "max_drawdown": -0.01855555095853728,
+                "max_drawdown_duration": 4,
+                "var_95_cornish_fisher": -0.018898016230118952
+            }
+        },
+        {
+            "slice_id": 28,
+            "train_start": "2020-01-01T00:00:00",
+            "train_end": "2020-07-18T00:00:00",
+            "test_start": "2020-03-01T00:00:00",
+            "test_end": "2020-06-28T00:00:00",
+            "metrics": {
+                "total_return": 0.13905353033057555,
+                "sharpe": 4.416278731705377,
+                "sortino": 66.08468290358995,
+                "max_drawdown": -0.018561665563109047,
+                "max_drawdown_duration": 4,
+                "var_95_cornish_fisher": -0.026328977863597502
+            }
+        },
+        {
+            "slice_id": 29,
+            "train_start": "2020-01-01T00:00:00",
+            "train_end": "2020-06-26T00:00:00",
+            "test_start": "2020-03-01T00:00:00",
+            "test_end": "2020-07-18T00:00:00",
+            "metrics": {
+                "total_return": 0.1590198203249722,
+                "sharpe": 4.229274325143556,
+                "sortino": 63.95464141547583,
+                "max_drawdown": -0.018556946239076954,
+                "max_drawdown_duration": 4,
+                "var_95_cornish_fisher": -0.03324638516607851
+            }
+        },
+        {
+            "slice_id": 30,
+            "train_start": "2020-01-01T00:00:00",
+            "train_end": "2020-07-18T00:00:00",
+            "test_start": "2020-03-21T00:00:00",
+            "test_end": "2020-04-29T00:00:00",
+            "metrics": {
+                "total_return": 0.05900945210920838,
+                "sharpe": 2.59519558710018,
+                "sortino": 136.5276560470549,
+                "max_drawdown": -0.01855759037794718,
+                "max_drawdown_duration": 4,
+                "var_95_cornish_fisher": -0.011720008868456236
+            }
+        },
+        {
+            "slice_id": 31,
+            "train_start": "2020-01-01T00:00:00",
+            "train_end": "2020-07-18T00:00:00",
+            "test_start": "2020-03-21T00:00:00",
+            "test_end": "2020-05-19T00:00:00",
+            "metrics": {
+                "total_return": 0.07900719625543484,
+                "sharpe": 3.6671177081261024,
+                "sortino": 89.53199630204192,
+                "max_drawdown": -0.018556338063509873,
+                "max_drawdown_duration": 4,
+                "var_95_cornish_fisher": -0.01066472256401147
+            }
+        },
+        {
+            "slice_id": 32,
+            "train_start": "2020-01-01T00:00:00",
+            "train_end": "2020-07-18T00:00:00",
+            "test_start": "2020-03-21T00:00:00",
+            "test_end": "2020-06-08T00:00:00",
+            "metrics": {
+                "total_return": 0.09903775149835825,
+                "sharpe": 4.344222081669409,
+                "sortino": 76.16923171774202,
+                "max_drawdown": -0.01856159703474595,
+                "max_drawdown_duration": 4,
+                "var_95_cornish_fisher": -0.012601850202895058
+            }
+        },
+        {
+            "slice_id": 33,
+            "train_start": "2020-01-01T00:00:00",
+            "train_end": "2020-07-18T00:00:00",
+            "test_start": "2020-03-21T00:00:00",
+            "test_end": "2020-06-28T00:00:00",
+            "metrics": {
+                "total_return": 0.11902937387364076,
+                "sharpe": 4.51935118971055,
+                "sortino": 69.70134219311814,
+                "max_drawdown": -0.01855916015537164,
+                "max_drawdown_duration": 4,
+                "var_95_cornish_fisher": -0.0189016279354802
+            }
+        },
+        {
+            "slice_id": 34,
+            "train_start": "2020-01-01T00:00:00",
+            "train_end": "2020-06-26T00:00:00",
+            "test_start": "2020-03-21T00:00:00",
+            "test_end": "2020-07-18T00:00:00",
+            "metrics": {
+                "total_return": 0.13902102111194137,
+                "sharpe": 4.416268660133849,
+                "sortino": 66.09855893143545,
+                "max_drawdown": -0.018557427767960957,
+                "max_drawdown_duration": 4,
+                "var_95_cornish_fisher": -0.02632307480262711
+            }
+        },
+        {
+            "slice_id": 35,
+            "train_start": "2020-01-01T00:00:00",
+            "train_end": "2020-07-18T00:00:00",
+            "test_start": "2020-04-10T00:00:00",
+            "test_end": "2020-05-19T00:00:00",
+            "metrics": {
+                "total_return": 0.05899124125885824,
+                "sharpe": 2.595167868076932,
+                "sortino": 136.56664417408214,
+                "max_drawdown": -0.018551997545844898,
+                "max_drawdown_duration": 4,
+                "var_95_cornish_fisher": -0.011716500249365224
+            }
+        },
+        {
+            "slice_id": 36,
+            "train_start": "2020-01-01T00:00:00",
+            "train_end": "2020-07-18T00:00:00",
+            "test_start": "2020-04-10T00:00:00",
+            "test_end": "2020-06-08T00:00:00",
+            "metrics": {
+                "total_return": 0.07901175496367818,
+                "sharpe": 3.667122924898749,
+                "sortino": 89.5272151557516,
+                "max_drawdown": -0.018557383664420765,
+                "max_drawdown_duration": 4,
+                "var_95_cornish_fisher": -0.010665314322637252
+            }
+        },
+        {
+            "slice_id": 37,
+            "train_start": "2020-01-01T00:00:00",
+            "train_end": "2020-07-18T00:00:00",
+            "test_start": "2020-04-10T00:00:00",
+            "test_end": "2020-06-28T00:00:00",
+            "metrics": {
+                "total_return": 0.09903938087033115,
+                "sharpe": 4.344223549796621,
+                "sortino": 76.16808001671832,
+                "max_drawdown": -0.018561895250652362,
+                "max_drawdown_duration": 4,
+                "var_95_cornish_fisher": -0.012602048559861115
+            }
+        },
+        {
+            "slice_id": 38,
+            "train_start": "2020-01-01T00:00:00",
+            "train_end": "2020-06-26T00:00:00",
+            "test_start": "2020-04-10T00:00:00",
+            "test_end": "2020-07-18T00:00:00",
+            "metrics": {
+                "total_return": 0.11905285123702924,
+                "sharpe": 4.519365015288138,
+                "sortino": 69.68884323572638,
+                "max_drawdown": -0.01856273493286719,
+                "max_drawdown_duration": 4,
+                "var_95_cornish_fisher": -0.01890520517380627
+            }
+        },
+        {
+            "slice_id": 39,
+            "train_start": "2020-01-01T00:00:00",
+            "train_end": "2020-07-18T00:00:00",
+            "test_start": "2020-04-30T00:00:00",
+            "test_end": "2020-06-08T00:00:00",
+            "metrics": {
+                "total_return": 0.05899156707927955,
+                "sharpe": 2.5951683640169434,
+                "sortino": 136.56594640426553,
+                "max_drawdown": -0.018552097611016127,
+                "max_drawdown_duration": 4,
+                "var_95_cornish_fisher": -0.011716563024580802
+            }
+        },
+        {
+            "slice_id": 40,
+            "train_start": "2020-01-01T00:00:00",
+            "train_end": "2020-07-18T00:00:00",
+            "test_start": "2020-04-30T00:00:00",
+            "test_end": "2020-06-28T00:00:00",
+            "metrics": {
+                "total_return": 0.07898569533286093,
+                "sharpe": 3.6670931031534537,
+                "sortino": 89.55455378597262,
+                "max_drawdown": -0.018551406500260048,
+                "max_drawdown_duration": 4,
+                "var_95_cornish_fisher": -0.010661931528758847
+            }
+        },
+        {
+            "slice_id": 41,
+            "train_start": "2020-01-01T00:00:00",
+            "train_end": "2020-06-26T00:00:00",
+            "test_start": "2020-04-30T00:00:00",
+            "test_end": "2020-07-18T00:00:00",
+            "metrics": {
+                "total_return": 0.09899891477118006,
+                "sharpe": 4.344187087401924,
+                "sortino": 76.19669419255118,
+                "max_drawdown": -0.018554488872249905,
+                "max_drawdown_duration": 4,
+                "var_95_cornish_fisher": -0.01259712220338588
+            }
+        },
+        {
+            "slice_id": 42,
+            "train_start": "2020-01-01T00:00:00",
+            "train_end": "2020-07-18T00:00:00",
+            "test_start": "2020-05-20T00:00:00",
+            "test_end": "2020-06-28T00:00:00",
+            "metrics": {
+                "total_return": 0.05902124532524988,
+                "sharpe": 2.595213537522374,
+                "sortino": 136.50242045905054,
+                "max_drawdown": -0.018561212212724727,
+                "max_drawdown_duration": 4,
+                "var_95_cornish_fisher": -0.01172228099064481
+            }
+        },
+        {
+            "slice_id": 43,
+            "train_start": "2020-01-01T00:00:00",
+            "train_end": "2020-06-26T00:00:00",
+            "test_start": "2020-05-20T00:00:00",
+            "test_end": "2020-07-18T00:00:00",
+            "metrics": {
+                "total_return": 0.07901270128664506,
+                "sharpe": 3.667124007823532,
+                "sortino": 89.52622272699284,
+                "max_drawdown": -0.018557600715937834,
+                "max_drawdown_duration": 4,
+                "var_95_cornish_fisher": -0.010665437162983685
+            }
+        },
+        {
+            "slice_id": 44,
+            "train_start": "2020-01-01T00:00:00",
+            "train_end": "2020-06-06T00:00:00",
+            "test_start": "2020-06-09T00:00:00",
+            "test_end": "2020-07-18T00:00:00",
+            "metrics": {
+                "total_return": 0.05899599823261226,
+                "sharpe": 2.595175108781399,
+                "sortino": 136.5564575098212,
+                "max_drawdown": -0.01855345849342287,
+                "max_drawdown_duration": 4,
+                "var_95_cornish_fisher": -0.011717416764618344
+            }
+        }
+    ]
+}

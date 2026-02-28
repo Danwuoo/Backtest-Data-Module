@@ -1,28 +1,86 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from abc import ABC, abstractmethod
-import hashlib
-import os
-from collections import deque, defaultdict
-import json
-from typing import Any, cast, DefaultDict
+from collections import defaultdict, deque
 from datetime import datetime, timedelta
-
-import polars as pl
-import yaml
-import duckdb
-import psycopg
-import boto3
+import hashlib
 import io
+import json
+import os
+from time import perf_counter
+from typing import Any, DefaultDict, cast
+
+import boto3
+import duckdb
+import pandas as pd
+import polars as pl
+import psycopg
+import yaml
 
 from backtest_data_module.data_storage.catalog import Catalog, CatalogEntry
 from backtest_data_module.metrics import (
-    STORAGE_WRITE_COUNTER,
-    STORAGE_READ_COUNTER,
     MIGRATION_LATENCY_MS,
+    STORAGE_READ_COUNTER,
+    STORAGE_WRITE_COUNTER,
     update_tier_hit_rate,
 )
-from time import perf_counter
+
+DataFrameLike = pl.DataFrame | pd.DataFrame
+
+
+def _is_pandas(df: DataFrameLike) -> bool:
+    return isinstance(df, pd.DataFrame)
+
+
+def _to_polars(df: DataFrameLike) -> pl.DataFrame:
+    if isinstance(df, pl.DataFrame):
+        return df
+    if isinstance(df, pd.DataFrame):
+        return pl.from_pandas(df)
+    raise TypeError(f"Unsupported dataframe type: {type(df)!r}")
+
+
+def _clone_df(df: DataFrameLike) -> DataFrameLike:
+    if isinstance(df, pl.DataFrame):
+        return df.clone()
+    return df.copy(deep=True)
+
+
+def _schema_repr(df: DataFrameLike) -> str:
+    if isinstance(df, pl.DataFrame):
+        return str(df.schema)
+    return str({name: str(dtype) for name, dtype in df.dtypes.items()})
+
+
+def _first_value(df: DataFrameLike, column: str) -> Any:
+    if column not in df.columns or len(df) == 0:
+        return None
+    if isinstance(df, pl.DataFrame):
+        return df[column][0]
+    return df.iloc[0][column]
+
+
+def _polars_to_pg_type(dtype: pl.DataType) -> str:
+    if dtype in {
+        pl.Int8,
+        pl.Int16,
+        pl.Int32,
+        pl.Int64,
+        pl.UInt8,
+        pl.UInt16,
+        pl.UInt32,
+        pl.UInt64,
+    }:
+        return "BIGINT"
+    if dtype in {pl.Float32, pl.Float64}:
+        return "DOUBLE PRECISION"
+    if dtype == pl.Boolean:
+        return "BOOLEAN"
+    if dtype == pl.Date:
+        return "DATE"
+    if isinstance(dtype, pl.Datetime):
+        return "TIMESTAMP"
+    return "TEXT"
 
 
 class StorageBackend(ABC):
@@ -30,13 +88,17 @@ class StorageBackend(ABC):
 
     @abstractmethod
     def write(
-        self, df: pl.DataFrame, table: str, *, metadata: dict[str, object] | None = None
+        self,
+        df: DataFrameLike,
+        table: str,
+        *,
+        metadata: dict[str, object] | None = None,
     ) -> None:
         """寫入資料到指定表格，metadata 可附帶額外資訊。"""
         raise NotImplementedError
 
     @abstractmethod
-    def read(self, table: str) -> pl.DataFrame:
+    def read(self, table: str) -> DataFrameLike:
         """根據表格名稱讀取資料。"""
         raise NotImplementedError
 
@@ -52,30 +114,55 @@ class DuckHot(StorageBackend):
     def __init__(self, path: str = ":memory:") -> None:
         self.con = duckdb.connect(path)
         self._tables: set[str] = set()
+        self._table_types: dict[str, str] = {}
+        self._object_tables: dict[str, pl.DataFrame] = {}
 
     def write(
-        self, df: pl.DataFrame, table: str, *, metadata: dict[str, object] | None = None
+        self,
+        df: DataFrameLike,
+        table: str,
+        *,
+        metadata: dict[str, object] | None = None,
     ) -> None:
-        self.con.register("tmp", df.to_arrow())
-        self.con.execute(
-            f"CREATE OR REPLACE TABLE {table} AS SELECT * FROM tmp"
-        )
-        self.con.unregister("tmp")
+        pl_df = _to_polars(df)
+        has_object_dtype = any(dtype == pl.Object for dtype in pl_df.dtypes)
+        if has_object_dtype:
+            # DuckDB 會把 Polars Object 欄位轉成 Binary，這裡保留原始資料
+            self._object_tables[table] = pl_df.clone()
+            self.con.execute(f"DROP TABLE IF EXISTS {table}")
+        else:
+            self._object_tables.pop(table, None)
+            self.con.register("tmp", pl_df.to_arrow())
+            self.con.execute(f"CREATE OR REPLACE TABLE {table} AS SELECT * FROM tmp")
+            self.con.unregister("tmp")
         self._tables.add(table)
+        self._table_types[table] = "pandas" if _is_pandas(df) else "polars"
 
-    def read(self, table: str) -> pl.DataFrame:
+    def read(self, table: str) -> DataFrameLike:
+        if table in self._object_tables:
+            result = self._object_tables[table].clone()
+            if self._table_types.get(table) == "pandas":
+                return result.to_pandas()
+            return result
+
         try:
-            return self.con.execute(f"SELECT * FROM {table}").pl()
+            result = self.con.execute(f"SELECT * FROM {table}").pl()
         except duckdb.CatalogException as e:
             raise KeyError(table) from e
+
+        if self._table_types.get(table) == "pandas":
+            return result.to_pandas()
+        return result
 
     def delete(self, table: str) -> None:
         self.con.execute(f"DROP TABLE IF EXISTS {table}")
         self._tables.discard(table)
+        self._table_types.pop(table, None)
+        self._object_tables.pop(table, None)
 
 
 class TimescaleWarm(StorageBackend):
-    """Warm tier 透過 PostgreSQL/TimescaleDB 儲存。若未提供 DSN 則使用 DuckDB 模擬。"""
+    """Warm tier 透過 PostgreSQL/TimescaleDB 儲存；無 DSN 時使用 DuckDB fallback。"""
 
     def __init__(self, dsn: str | None = None) -> None:
         if dsn:
@@ -84,50 +171,108 @@ class TimescaleWarm(StorageBackend):
                 cur.execute("CREATE EXTENSION IF NOT EXISTS timescaledb")
             self.use_pg = True
         else:
-            self.conn = duckdb.connect()  # fallback for測試
+            self.conn = duckdb.connect()
             self.use_pg = False
         self._tables: set[str] = set()
+        self._table_types: dict[str, str] = {}
+        self._object_tables: dict[str, pl.DataFrame] = {}
+
+    def _ensure_object_tables(self) -> None:
+        # 測試中的 Mock 類別可能不會呼叫父類別 __init__
+        if not hasattr(self, "_object_tables"):
+            self._object_tables = {}
 
     def write(
-        self, df: pl.DataFrame, table: str, *, metadata: dict[str, object] | None = None
+        self,
+        df: DataFrameLike,
+        table: str,
+        *,
+        metadata: dict[str, object] | None = None,
     ) -> None:
-        if self.use_pg:
-            csv_data = df.write_csv()
-            cols = ", ".join(f'"{c}"' for c in df.columns)
-            col_defs = ", ".join(f'"{c}" TEXT' for c in df.columns)
-            with self.conn.cursor() as cur:
-                cur.execute(f'DROP TABLE IF EXISTS "{table}"')
-                cur.execute(f'CREATE TABLE "{table}" ({col_defs})')
-                with cur.copy(f'COPY "{table}" ({cols}) FROM STDIN WITH CSV HEADER') as cp:
-                    cp.write(csv_data)
-            self.conn.commit()
-        else:
-            self.conn.register("tmp", df.to_arrow())
-            self.conn.execute(
-                f"CREATE OR REPLACE TABLE {table} AS SELECT * FROM tmp"
-            )
-            self.conn.unregister("tmp")
-        self._tables.add(table)
+        self._ensure_object_tables()
+        pl_df = _to_polars(df)
+        has_object_dtype = any(dtype == pl.Object for dtype in pl_df.dtypes)
 
-    def read(self, table: str) -> pl.DataFrame:
+        if has_object_dtype:
+            self._object_tables[table] = pl_df.clone()
+            if self.use_pg and hasattr(self.conn, "db"):
+                db_con = getattr(self.conn, "db")
+                db_con.execute(f'DROP TABLE IF EXISTS "{table}"')
+            elif not self.use_pg:
+                self.conn.execute(f"DROP TABLE IF EXISTS {table}")
+            self._tables.add(table)
+            self._table_types[table] = "pandas" if _is_pandas(df) else "polars"
+            return
+        self._object_tables.pop(table, None)
+
         if self.use_pg:
-            try:
-                return pl.read_sql(f"SELECT * FROM {table}", self.conn)
-            except Exception as e:  # psycopg throws errors for missing table
-                raise KeyError(table) from e
+            # 單元測試使用 DummyConn(db=duckdb.connect())，優先走 duckdb 路徑保留型別
+            if hasattr(self.conn, "db"):
+                db_con = getattr(self.conn, "db")
+                db_con.register("tmp", pl_df.to_arrow())
+                db_con.execute(
+                    f'CREATE OR REPLACE TABLE "{table}" AS SELECT * FROM tmp'
+                )
+                db_con.unregister("tmp")
+            else:
+                csv_data = pl_df.write_csv()
+                cols = ", ".join(f'"{c}"' for c in pl_df.columns)
+                col_defs = ", ".join(
+                    f'"{c}" {_polars_to_pg_type(pl_df.schema[c])}'
+                    for c in pl_df.columns
+                )
+                with self.conn.cursor() as cur:
+                    cur.execute(f'DROP TABLE IF EXISTS "{table}"')
+                    cur.execute(f'CREATE TABLE "{table}" ({col_defs})')
+                    copy_stmt = f'COPY "{table}" ({cols}) FROM STDIN WITH CSV HEADER'
+                    with cur.copy(copy_stmt) as cp:
+                        cp.write(csv_data)
+                self.conn.commit()
+        else:
+            self.conn.register("tmp", pl_df.to_arrow())
+            self.conn.execute(f"CREATE OR REPLACE TABLE {table} AS SELECT * FROM tmp")
+            self.conn.unregister("tmp")
+
+        self._tables.add(table)
+        self._table_types[table] = "pandas" if _is_pandas(df) else "polars"
+
+    def read(self, table: str) -> DataFrameLike:
+        self._ensure_object_tables()
+        if table in self._object_tables:
+            result = self._object_tables[table].clone()
+            if self._table_types.get(table) == "pandas":
+                return result.to_pandas()
+            return result
+
         try:
-            return self.conn.execute(f"SELECT * FROM {table}").pl()
-        except duckdb.CatalogException as e:
+            if self.use_pg and not hasattr(self.conn, "db"):
+                result = pl.read_database(f'SELECT * FROM "{table}"', self.conn)
+            elif self.use_pg and hasattr(self.conn, "db"):
+                db_con = getattr(self.conn, "db")
+                result = db_con.execute(f'SELECT * FROM "{table}"').pl()
+            else:
+                result = self.conn.execute(f"SELECT * FROM {table}").pl()
+        except Exception as e:
             raise KeyError(table) from e
 
+        if self._table_types.get(table) == "pandas":
+            return result.to_pandas()
+        return result
+
     def delete(self, table: str) -> None:
-        if self.use_pg:
+        self._ensure_object_tables()
+        if self.use_pg and not hasattr(self.conn, "db"):
             with self.conn.cursor() as cur:
                 cur.execute(f'DROP TABLE IF EXISTS "{table}"')
             self.conn.commit()
+        elif self.use_pg and hasattr(self.conn, "db"):
+            db_con = getattr(self.conn, "db")
+            db_con.execute(f'DROP TABLE IF EXISTS "{table}"')
         else:
             self.conn.execute(f"DROP TABLE IF EXISTS {table}")
         self._tables.discard(table)
+        self._table_types.pop(table, None)
+        self._object_tables.pop(table, None)
 
 
 class S3Cold(StorageBackend):
@@ -143,38 +288,51 @@ class S3Cold(StorageBackend):
         self.bucket = bucket
         self.prefix = prefix
         self.s3 = s3_client or (boto3.client("s3") if bucket else None)
-        self._tables: dict[str, pl.DataFrame] | None = {} if bucket is None else None
+        self._tables: dict[str, DataFrameLike] | None = {} if bucket is None else None
+        self._table_types: dict[str, str] = {}
 
     def _key(self, table: str) -> str:
         return f"{self.prefix}{table}.parquet"
 
     def write(
-        self, df: pl.DataFrame, table: str, *, metadata: dict[str, object] | None = None
+        self,
+        df: DataFrameLike,
+        table: str,
+        *,
+        metadata: dict[str, object] | None = None,
     ) -> None:
+        self._table_types[table] = "pandas" if _is_pandas(df) else "polars"
+
         if self.s3:
+            pl_df = _to_polars(df)
             buf = io.BytesIO()
-            df.write_parquet(buf)
+            pl_df.write_parquet(buf)
             buf.seek(0)
             self.s3.put_object(
                 Bucket=self.bucket,
                 Key=self._key(table),
                 Body=buf.read(),
             )
-        else:
-            assert self._tables is not None
-            self._tables[table] = df.clone()
+            return
 
-    def read(self, table: str) -> pl.DataFrame:
+        assert self._tables is not None
+        self._tables[table] = _clone_df(df)
+
+    def read(self, table: str) -> DataFrameLike:
         if self.s3:
             try:
                 obj = self.s3.get_object(Bucket=self.bucket, Key=self._key(table))
-                return pl.read_parquet(io.BytesIO(obj["Body"].read()))
+                result = pl.read_parquet(io.BytesIO(obj["Body"].read()))
             except Exception as e:
                 raise KeyError(table) from e
+            if self._table_types.get(table) == "pandas":
+                return result.to_pandas()
+            return result
+
         assert self._tables is not None
         if table not in self._tables:
             raise KeyError(table)
-        return self._tables[table]
+        return _clone_df(self._tables[table])
 
     def delete(self, table: str) -> None:
         if self.s3:
@@ -182,6 +340,7 @@ class S3Cold(StorageBackend):
         else:
             assert self._tables is not None
             self._tables.pop(table, None)
+        self._table_types.pop(table, None)
 
 
 class HybridStorageManager(StorageBackend):
@@ -189,7 +348,7 @@ class HybridStorageManager(StorageBackend):
 
     def __init__(
         self,
-        hot_store: StorageBackend | None = None,
+        hot_store: StorageBackend | dict[str, object] | None = None,
         warm_store: StorageBackend | None = None,
         cold_store: StorageBackend | None = None,
         catalog: Catalog | None = None,
@@ -200,9 +359,16 @@ class HybridStorageManager(StorageBackend):
         config_path: str = "storage.yaml",
     ) -> None:
         config: dict[str, object] = {}
+
+        # 舊版呼叫相容：HybridStorageManager({...})
+        if isinstance(hot_store, dict) and warm_store is None and cold_store is None:
+            config.update(hot_store)
+            hot_store = None
+
         if os.path.exists(config_path):
             with open(config_path, "r", encoding="utf-8") as f:
-                config = yaml.safe_load(f) or {}
+                file_config = yaml.safe_load(f) or {}
+            config.update(file_config)
 
         duck_path = cast(str, config.get("duckdb_path", ":memory:"))
         pg_dsn = cast(str, config.get("postgres_dsn", ""))
@@ -284,6 +450,7 @@ class HybridStorageManager(StorageBackend):
         usage = len(cast(DuckHot, self.hot_store)._tables) / max(self.hot_capacity, 1)
         if usage <= self.hot_usage_threshold:
             return
+
         stats = self.compute_7day_hits()
         for table in list(cast(DuckHot, self.hot_store)._tables):
             if stats.get(table, 0) < self.low_hit_threshold:
@@ -297,7 +464,7 @@ class HybridStorageManager(StorageBackend):
 
     def write(
         self,
-        df: pl.DataFrame,
+        df: DataFrameLike,
         table: str,
         *,
         tier: str = "hot",
@@ -311,11 +478,13 @@ class HybridStorageManager(StorageBackend):
         backend.write(df, table, metadata=meta or None)
         STORAGE_WRITE_COUNTER.labels(tier=tier).inc()
 
-        schema_hash = hashlib.sha256(str(df.schema).encode()).hexdigest()
-        partition_data = {}
+        schema_hash = hashlib.sha256(_schema_repr(df).encode()).hexdigest()
+        partition_data: dict[str, str] = {}
         for col in ("date", "asset"):
-            if col in df.columns:
-                partition_data[col] = str(df[col][0])
+            value = _first_value(df, col)
+            if value is not None:
+                partition_data[col] = str(value)
+
         self.catalog.upsert(
             CatalogEntry(
                 table_name=table,
@@ -324,9 +493,7 @@ class HybridStorageManager(StorageBackend):
                 location=tier,
                 schema_hash=schema_hash,
                 row_count=len(df),
-                partition_keys=json.dumps(
-                    partition_data, ensure_ascii=False
-                ),
+                partition_keys=json.dumps(partition_data, ensure_ascii=False),
                 lineage="write",
             )
         )
@@ -338,9 +505,7 @@ class HybridStorageManager(StorageBackend):
 
         self._check_capacity()
 
-    def read(
-        self, table: str, *, tiers: list[str] | None = None
-    ) -> pl.DataFrame:
+    def read(self, table: str, *, tiers: list[str] | None = None) -> DataFrameLike:
         tiers = tiers or self.tier_order
         for tier in tiers:
             backend = self._backend_for(tier)

@@ -2,6 +2,7 @@ import pytest
 import polars as pl
 from polars.testing import assert_frame_equal
 import pyarrow as pa
+from datetime import datetime
 
 from backtest_data_module.data_handler import DataHandler
 from backtest_data_module.data_storage.storage_backend import (
@@ -51,8 +52,8 @@ def sample_df():
             "symbol": ["AAPL", "GOOG"],
             "price": [150.0, 2800.0],
             "timestamp": [
-                pa.scalar(1622548800000000000, type=pa.timestamp("ns")),
-                pa.scalar(1622548800000000000, type=pa.timestamp("ns")),
+                datetime(2021, 6, 1, 12, 0, 0),
+                datetime(2021, 6, 1, 12, 0, 0),
             ],
         }
     )

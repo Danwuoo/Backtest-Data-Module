@@ -8,6 +8,9 @@ from reportlab.platypus import SimpleDocTemplate, Image, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
 from matplotlib.backends.backend_pdf import PdfPages
 
+TMP_DIR = Path("/tmp")
+TMP_DIR.mkdir(parents=True, exist_ok=True)
+
 
 def plot_equity_curve(nav_series: List[float], output_path: Path):
     """繪製權益曲線。"""
@@ -109,17 +112,17 @@ class ReportGen:
         # Add charts
         chart_paths = []
         if "nav_series" in self.results:
-            chart_path = Path(f"/tmp/{self.run_id}_equity_curve.png")
+            chart_path = TMP_DIR / f"{self.run_id}_equity_curve.png"
             plot_equity_curve(self.results["nav_series"], chart_path)
             chart_paths.append(chart_path)
 
         if "drawdowns" in self.results:
-            chart_path = Path(f"/tmp/{self.run_id}_drawdown.png")
+            chart_path = TMP_DIR / f"{self.run_id}_drawdown.png"
             plot_drawdown(self.results["drawdowns"], chart_path)
             chart_paths.append(chart_path)
 
         if "returns" in self.results:
-            chart_path = Path(f"/tmp/{self.run_id}_return_histogram.png")
+            chart_path = TMP_DIR / f"{self.run_id}_return_histogram.png"
             plot_return_histogram(self.results["returns"], chart_path)
             chart_paths.append(chart_path)
 
@@ -179,16 +182,16 @@ class ReportGen:
         chart_data = []
         for fig in chart_figures:
             buf = io.BytesIO()
-            fig.savefig(buf, format='png')
+            fig.savefig(buf, format="png")
             buf.seek(0)
             chart_data.append(buf.read())
 
         schema = pa.schema([
-            pa.field('run_id', pa.string()),
-            pa.field('strategy_name', pa.string()),
-            pa.field('hyperparams', pa.string()),
-            pa.field('metrics', pa.string()),
-            pa.field('charts', pa.list_(pa.binary()))
+            pa.field("run_id", pa.string()),
+            pa.field("strategy_name", pa.string()),
+            pa.field("hyperparams", pa.string()),
+            pa.field("metrics", pa.string()),
+            pa.field("charts", pa.list_(pa.binary()))
         ])
 
         batch = pa.RecordBatch.from_arrays([

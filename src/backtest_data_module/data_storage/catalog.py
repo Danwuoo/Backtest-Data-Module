@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING
 
+import polars as pl
+
 from backtest_data_module.utils.notify import Notifier, SlackNotifier
 
 if TYPE_CHECKING:  # pragma: no cover - type checking imports
@@ -140,7 +142,11 @@ def check_drift(
             df = backend.read(table)
         except KeyError:
             continue
-        new_hash = hashlib.sha256(str(df.dtypes.to_dict()).encode()).hexdigest()
+        if isinstance(df, pl.DataFrame):
+            schema_repr = str(df.schema)
+        else:
+            schema_repr = str({col: str(dtype) for col, dtype in df.dtypes.items()})
+        new_hash = hashlib.sha256(schema_repr.encode()).hexdigest()
         catalog.conn.execute(
             """
             UPDATE catalog

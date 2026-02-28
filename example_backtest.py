@@ -21,7 +21,7 @@ def main():
     df = pl.DataFrame(data)
 
     # 建立回測元件
-    strategy = SmaCrossover(params={"short_window": 10, "long_window": 30})
+    strategy = SmaCrossover(short_window=10, long_window=30)
     portfolio = Portfolio(initial_cash=100000)
     execution = Execution(
         commission_model=FlatCommission(0.001),

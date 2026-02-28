@@ -3,7 +3,11 @@ import pandas as pd
 from backtest_data_module.backtesting.orchestrator import Orchestrator
 from backtest_data_module.backtesting.strategies.sma_crossover import SmaCrossover
 from backtest_data_module.backtesting.portfolio import Portfolio
-from backtest_data_module.backtesting.execution import Execution, FlatCommission, GaussianSlippage
+from backtest_data_module.backtesting.execution import (
+    Execution,
+    FlatCommission,
+    GaussianSlippage,
+)
 from backtest_data_module.backtesting.performance import Performance
 from backtest_data_module.data_handler import DataHandler
 from backtest_data_module.data_storage.storage_backend import HybridStorageManager

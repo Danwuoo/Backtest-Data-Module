@@ -25,9 +25,16 @@ class TestGPUBacktest(unittest.TestCase):
         self.execution = Execution()
         self.performance = Performance()
 
-    def test_gpu_backtest(self):
+    def _require_cupy(self):
         try:
             import cupy
+        except ImportError as e:
+            self.skipTest(str(e))
+        return cupy
+
+    def test_gpu_backtest(self):
+        cupy = self._require_cupy()
+        try:
             backtest = Backtest(
                 strategy=self.strategy,
                 portfolio=self.portfolio,
@@ -39,12 +46,12 @@ class TestGPUBacktest(unittest.TestCase):
             self.assertIn("pnl", backtest.results)
             self.assertIn("fills", backtest.results)
             self.assertIn("performance", backtest.results)
-        except (ImportError, cupy.cuda.runtime.CUDARuntimeError) as e:
+        except cupy.cuda.runtime.CUDARuntimeError as e:
             self.skipTest(str(e))
 
     def test_gpu_backtest_with_quantization(self):
+        cupy = self._require_cupy()
         try:
-            import cupy
             self.strategy.quantization_bits = 8
             backtest = Backtest(
                 strategy=self.strategy,
@@ -57,12 +64,12 @@ class TestGPUBacktest(unittest.TestCase):
             self.assertIn("pnl", backtest.results)
             self.assertIn("fills", backtest.results)
             self.assertIn("performance", backtest.results)
-        except (ImportError, cupy.cuda.runtime.CUDARuntimeError) as e:
+        except cupy.cuda.runtime.CUDARuntimeError as e:
             self.skipTest(str(e))
 
     def test_gpu_backtest_with_mixed_precision(self):
+        cupy = self._require_cupy()
         try:
-            import cupy
             self.strategy.precision = "amp"
             backtest = Backtest(
                 strategy=self.strategy,
@@ -75,7 +82,7 @@ class TestGPUBacktest(unittest.TestCase):
             self.assertIn("pnl", backtest.results)
             self.assertIn("fills", backtest.results)
             self.assertIn("performance", backtest.results)
-        except (ImportError, cupy.cuda.runtime.CUDARuntimeError) as e:
+        except cupy.cuda.runtime.CUDARuntimeError as e:
             self.skipTest(str(e))
 
 

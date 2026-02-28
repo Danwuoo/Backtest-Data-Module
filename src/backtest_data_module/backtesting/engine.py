@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 import warnings
@@ -10,19 +10,20 @@ import polars as pl
 try:
     import cupy as cp
     from cupy import cuda
+
     CUPY_AVAILABLE = True
 except Exception:  # noqa: BLE001
     cp = None
     cuda = None
     CUPY_AVAILABLE = False
 
-from backtest_data_module.backtesting.events import SignalEvent, OrderEvent, FillEvent
+from backtest_data_module.backtesting.events import FillEvent, OrderEvent, SignalEvent
 from backtest_data_module.backtesting.execution import Execution
 from backtest_data_module.backtesting.performance import Performance
 from backtest_data_module.backtesting.portfolio import Portfolio
 from backtest_data_module.backtesting.strategy import StrategyBase
-from backtest_data_module.utils.profiler import Profiler
 from backtest_data_module.data_handler import DataHandler
+from backtest_data_module.utils.profiler import Profiler
 
 
 class Backtest:
@@ -44,6 +45,14 @@ class Backtest:
         self.device = self.strategy.device
         self.precision = self.strategy.precision
         self.quantization_bits = self.strategy.quantization_bits
+        self.time_col = (
+            "date"
+            if "date" in self.data.columns
+            else "timestamp" if "timestamp" in self.data.columns else None
+        )
+        if self.time_col is None:
+            raise ValueError("Backtest data must contain 'date' or 'timestamp' column")
+
         if self.device == "cuda" and not CUPY_AVAILABLE:
             warnings.warn("cupy 未安裝，將回退至 CPU 執行")
             self.device = "cpu"
@@ -77,7 +86,7 @@ class Backtest:
                     elif isinstance(event, OrderEvent):
                         timestamp = (
                             self.data.filter(pl.col("asset") == event.asset)
-                            .select("date")
+                            .select(self.time_col)
                             .row(0)[0]
                         )
                         self.execution.place_order(event, timestamp)
@@ -95,7 +104,7 @@ class Backtest:
                 elif isinstance(event, OrderEvent):
                     timestamp = (
                         self.data.filter(pl.col("asset") == event.asset)
-                        .select("date")
+                        .select(self.time_col)
                         .row(0)[0]
                     )
                     self.execution.place_order(event, timestamp)
@@ -103,11 +112,10 @@ class Backtest:
                     self.portfolio.update([event.__dict__])
 
         # 在回測結束時處理所有訂單
-        for timestamp in self.data["date"].unique():
-            market_data_at_timestamp = (
-                self.data.filter(pl.col("date") == timestamp)
-                .to_dict(as_series=False)
-            )
+        for timestamp in self.data[self.time_col].unique():
+            market_data_at_timestamp = self.data.filter(
+                pl.col(self.time_col) == timestamp
+            ).to_dict(as_series=False)
             market_data_dict = {}
             for i in range(len(market_data_at_timestamp["asset"])):
                 asset = market_data_at_timestamp["asset"][i]
@@ -127,9 +135,9 @@ class Backtest:
         else:
             xp = np
 
-        for timestamp in self.data["date"].unique():
+        for timestamp in self.data[self.time_col].unique():
             last_prices = (
-                self.data.filter(pl.col("date") <= timestamp)
+                self.data.filter(pl.col(self.time_col) <= timestamp)
                 .group_by("asset")
                 .last()
                 .select(["asset", "close"])
@@ -175,5 +183,5 @@ class Backtest:
             self.profiler.print_report()
 
     def to_json(self, filepath: str):
-        with open(filepath, "w") as f:
+        with open(filepath, "w", encoding="utf-8") as f:
             json.dump(self.results, f, indent=4)

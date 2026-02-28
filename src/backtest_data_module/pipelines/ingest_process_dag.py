@@ -4,9 +4,10 @@ from datetime import datetime
 from pathlib import Path
 import pandas as pd
 from airflow.decorators import dag, task
-from data_processing.pipeline import Pipeline
-from data_storage.storage_backend import HybridStorageManager
-from zxq.pipeline.loader import load_steps_from_yaml
+
+from backtest_data_module.data_processing.pipeline import Pipeline
+from backtest_data_module.data_storage.storage_backend import HybridStorageManager
+from backtest_data_module.zxq.pipeline.loader import load_steps_from_yaml
 
 
 def save_raw_to_parquet(symbol: str, date: str, df: pd.DataFrame) -> Path:
