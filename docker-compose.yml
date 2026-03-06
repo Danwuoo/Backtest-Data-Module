@@ -19,9 +19,9 @@ services:
 
   redis:
     image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
     ports:
       - "${REDIS_PORT:-6379}:6379"
-    command: ["redis-server", "--appendonly", "yes"]
     volumes:
       - redis_data:/data
     healthcheck:
@@ -35,7 +35,7 @@ services:
     command:
       [
         "uvicorn",
-        "backtest_data_module.trading.services.control_api:app",
+        "okx_trading_platform.services.control_api:app",
         "--host",
         "0.0.0.0",
         "--port",
@@ -43,8 +43,8 @@ services:
       ]
     environment:
       CONTROL_API_DATABASE_URL: ${CONTROL_API_DATABASE_URL:-postgresql+psycopg://postgres:postgres@postgres:5432/trading_platform}
+      CONTROL_API_KEY: ${CONTROL_API_KEY:-}
       TRADING_PROFILE: ${TRADING_PROFILE:-demo}
-      STRATEGY_MANAGER_API_KEY: ${STRATEGY_MANAGER_API_KEY:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -59,7 +59,7 @@ services:
     command:
       [
         "uvicorn",
-        "backtest_data_module.trading.services.market_data:app",
+        "okx_trading_platform.services.market_data:app",
         "--host",
         "0.0.0.0",
         "--port",
@@ -67,6 +67,8 @@ services:
       ]
     environment:
       TRADING_PROFILE: ${TRADING_PROFILE:-demo}
+      CONTROL_API_URL: ${CONTROL_API_URL:-http://control-api:8000}
+      CONTROL_API_KEY: ${CONTROL_API_KEY:-}
     depends_on:
       control-api:
         condition: service_started
@@ -81,7 +83,7 @@ services:
     command:
       [
         "uvicorn",
-        "backtest_data_module.trading.services.execution:app",
+        "okx_trading_platform.services.execution:app",
         "--host",
         "0.0.0.0",
         "--port",
@@ -89,6 +91,8 @@ services:
       ]
     environment:
       TRADING_PROFILE: ${TRADING_PROFILE:-demo}
+      CONTROL_API_URL: ${CONTROL_API_URL:-http://control-api:8000}
+      CONTROL_API_KEY: ${CONTROL_API_KEY:-}
       OKX_DEMO_API_KEY: ${OKX_DEMO_API_KEY:-}
       OKX_DEMO_SECRET_KEY: ${OKX_DEMO_SECRET_KEY:-}
       OKX_DEMO_PASSPHRASE: ${OKX_DEMO_PASSPHRASE:-}
@@ -109,7 +113,7 @@ services:
     command:
       [
         "uvicorn",
-        "backtest_data_module.trading.services.risk:app",
+        "okx_trading_platform.services.risk:app",
         "--host",
         "0.0.0.0",
         "--port",
@@ -117,6 +121,8 @@ services:
       ]
     environment:
       TRADING_PROFILE: ${TRADING_PROFILE:-demo}
+      CONTROL_API_URL: ${CONTROL_API_URL:-http://control-api:8000}
+      CONTROL_API_KEY: ${CONTROL_API_KEY:-}
     depends_on:
       control-api:
         condition: service_started
@@ -129,7 +135,7 @@ services:
     command:
       [
         "uvicorn",
-        "backtest_data_module.trading.services.strategy_runner:app",
+        "okx_trading_platform.services.strategy_runner:app",
         "--host",
         "0.0.0.0",
         "--port",
@@ -137,6 +143,8 @@ services:
       ]
     environment:
       TRADING_PROFILE: ${TRADING_PROFILE:-demo}
+      CONTROL_API_URL: ${CONTROL_API_URL:-http://control-api:8000}
+      CONTROL_API_KEY: ${CONTROL_API_KEY:-}
       REFERENCE_BOT_NAME: ${REFERENCE_BOT_NAME:-reference-breakout}
       REFERENCE_INST_ID: ${REFERENCE_INST_ID:-BTC-USDT-SWAP}
       REFERENCE_INSTRUMENT_KIND: ${REFERENCE_INSTRUMENT_KIND:-swap}

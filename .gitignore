@@ -1,6 +1,5 @@
 __pycache__/
 .coverage
-pipeline_log.csv
 *.pyc
 *.pyo
 *.pyd
@@ -14,12 +13,8 @@ dist/
 __pycache__/
 .DS_Store
 .pytest_cache/
-
-
-# Generated output files
-examples/outputs/*
-!examples/outputs/.gitkeep
+site/
+test_okx_trading_platform.db
+okx_trading_platform.db
 *.db
 *results.json
-report_test_run.json
-*.pdf

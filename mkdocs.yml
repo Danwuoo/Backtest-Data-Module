@@ -1,27 +1,19 @@
-site_name: Backtest-Data-Module
-repo_url: https://github.com/Danwuoo/Backtest-Data-Module
-site_url: https://danwuoo.github.io/Backtest-Data-Module/
-nav:
-  - 首頁: index.md
-  - 快速開始: getting_started.md
-  - 指南:
-      - 多層級儲存: data_storage.md
-      - 增量處理 Runner: incremental_runner.md
-      - 監控與警報設定: monitoring.md
-  - 步驟範例:
-      - DataCleanser: steps/DataCleanser.md
-      - FeatureEngineer: steps/FeatureEngineer.md
-      - MissingValueHandler: steps/MissingValueHandler.md
-      - TimeAligner: steps/TimeAligner.md
-  - API 參考:
-      - Data Storage: reference/data_storage.md
-      - Data Ingestion: reference/data_ingestion.md
-      - Strategy Manager: strategy_manager.md
-      - Plugins: reference/plugins.md
-plugins:
-  - search
-  - mkdocstrings
+site_name: OKX Trading Platform
 theme:
   name: material
-markdown_extensions:
-  - admonition
+nav:
+  - Overview: index.md
+  - Architecture: architecture.md
+  - Deployment: deployment.md
+  - Configuration: configuration.md
+  - Operations: operations.md
+  - Risk Controls: risk-controls.md
+  - CLI: cli.md
+  - API: api.md
+  - Development: development.md
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]

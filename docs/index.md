@@ -1,14 +1,12 @@
-# Backtest-Data-Module
+# OKX Trading Platform
 
-本專案提供非同步的金融資料擷取、資料管線與回測工具，適合於量化研究與交易流程使用。
+This documentation covers the production-facing shape of the repository after the migration away from research and backtesting modules.
 
-## 特色
+Use this project when you need:
 
-- **非同步資料擷取與快取**：整合多種 API，並提供自動快取機制
-- **速率限制與批次調整**：依據目標延遲自動調節批次大小與並發量
-- **Prefect 流程管理**：輕鬆建立 ETL 流程與排程任務
-- **ZXQuant CLI 工具**：內建 Walk-Forward 切分等實用指令
-- **交叉驗證與績效分析**：支援 CPCV 及多種績效指標計算
-- **監控與稽核**：提供 Prometheus 指標及資料 lineage 查詢
+- a control plane for OKX `demo` and `live` profiles
+- a thin service topology that fits a single VPS
+- deterministic order validation and kill-switch controls
+- a CLI for operations without a separate web dashboard
 
-想要立即體驗，請參考 [快速開始](getting_started.md)。
+The system is designed to be extended with additional signal providers later, but the current repository is intentionally optimized for platform reliability first.

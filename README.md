@@ -1,55 +1,44 @@
-# Backtest-Data-Module
+# OKX Trading Platform
 
-[![CI](https://github.com/Danwuoo/Backtest-Data-Module/actions/workflows/ci.yml/badge.svg)](https://github.com/Danwuoo/Backtest-Data-Module/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/Danwuoo/Backtest-Data-Module/branch/main/graph/badge.svg)](https://codecov.io/gh/Danwuoo/Backtest-Data-Module)
-[![PyPI](https://img.shields.io/pypi/v/backtest-data-module.svg)](https://pypi.org/project/backtest-data-module/)
-[![License](https://img.shields.io/github/license/Danwuoo/Backtest-Data-Module.svg)](LICENSE)
+OKX Trading Platform is a focused control plane and service runtime for automated trading on OKX. The repository supports `demo` and `live` profiles, `spot` and `USDT-settled swap` instruments, and a small set of services that can run on a single VPS with Docker Compose.
 
-Backtest-Data-Module 提供非同步 API 資料擷取、資料處理流程與回測相關工具，可用於 ZXQuant 或其他量化交易系統。
+## Scope
 
-## 特色
+- `control-api` manages profiles, allowlisted instruments, bots, orders, balances, positions, service heartbeats, and the kill switch.
+- `market-data-service`, `execution-service`, `risk-service`, and `strategy-runner` provide deployable service entrypoints.
+- `okx-platform` is the CLI for control plane operations.
+- AI models, research notebooks, backtesting, and generic data platform modules are intentionally out of scope for this repository.
 
-- **非同步資料擷取與快取**：整合多種 API，並提供自動快取機制
-- **速率限制與批次調整**：依據目標延遲自動調節批次大小與並發量
-- **Prefect 流程管理**：輕鬆建立 ETL 流程與排程任務
-- **ZXQuant CLI 工具**：內建 Walk-Forward 切分等實用指令
-- **交叉驗證與績效分析**：支援 CPCV 及多種績效指標計算
-- **監控與稽核**：提供 Prometheus 指標及資料 lineage 查詢
+## Project Layout
 
-## 快速開始
+- `src/okx_trading_platform/api`: FastAPI control plane and request schemas
+- `src/okx_trading_platform/application`: orchestration and repository layer
+- `src/okx_trading_platform/domain`: typed models and risk logic
+- `src/okx_trading_platform/adapters/okx`: OKX REST/WS routing, signing, and order book helpers
+- `src/okx_trading_platform/services`: deployable service entrypoints
+- `src/okx_trading_platform/shared`: shared auth, database, settings, logging, and runtime helpers
+- `docs/`: product, deployment, and operations documentation
 
-### 安裝
-
-建議使用 Python 3.12+，可直接透過 PyPI 安裝：
-
-```bash
-pip install backtest-data-module
-```
-
-若需在本地執行 `flake8` 或 `pytest` 進行檢查，請先安裝開發依賴：
+## Quick Start
 
 ```bash
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
+python -m pip install -e .
+uvicorn okx_trading_platform.services.control_api:app --reload
 ```
 
-### 範例
-
-執行隨附的 `example.py` 示範如何擷取資料並寫入快取：
+In another shell:
 
 ```bash
-python example.py
+okx-platform profiles
+okx-platform status
 ```
 
-或使用 CLI 進行 Walk-Forward 切分：
+## Validation
+
+Any source change must pass:
 
 ```bash
-zxq walk-forward 10 3 2 2
+flake8 .
+pytest -q
 ```
-
-## 版本管理
-
-本專案遵循 [Semantic Versioning](https://semver.org/lang/zh-TW/)。
-
-更多資訊請參閱本倉庫內的文件及 `docs/` 目錄。
-
-想參與開發或回報安全性問題，請參閱 [貢獻指南](CONTRIBUTING.md)、[行為準則](CODE_OF_CONDUCT.md) 與 [安全性政策](SECURITY.md)。

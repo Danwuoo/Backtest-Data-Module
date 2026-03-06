@@ -2,108 +2,26 @@ name: CI
 
 on:
   push:
-    paths-ignore:
-      - '**/*.md'
   pull_request:
-    paths-ignore:
-      - '**/*.md'
   workflow_dispatch:
-    inputs:
-      run_locust:
-        description: '執行 Locust 壓力測試'
-        required: false
-        default: 'false'
 
 jobs:
   lint-and-test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - name: 設定 Python
-        uses: actions/setup-python@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
-      - name: 安裝依賴
+          python-version: "3.12"
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          if command -v nvidia-smi &> /dev/null && [ -f requirements-gpu.txt ]; then
-            echo "偵測到 GPU環境，將安裝 GPU 附加套件"
-            pip install -r requirements-gpu.txt
-          else
-            echo "無 GPU 或未找到 requirements-gpu.txt，繼續"
-          fi
           pip install -e .
-          pip install flake8 pytest pytest-cov mypy great_expectations jupyter nbconvert
-      - name: 執行 Flake8
+          pip install flake8 pytest pytest-asyncio pytest-httpx mkdocs mkdocs-material mkdocstrings[python]
+      - name: Run flake8
         run: flake8 .
-      - name: 執行 mypy
-        run: mypy --strict src/
-      - name: 執行 pytest
-        run: |
-          if command -v nvidia-smi &> /dev/null; then
-            pytest --cov --cov-report=xml
-          else
-            echo "無正式 GPU環境，略過 GPU 測試"
-            pytest --cov --cov-report=xml --ignore=tests/backtesting/test_gpu_backtest.py
-          fi
-      - name: 上傳測試覆蓋率到 Codecov
-        uses: codecov/codecov-action@v3
-        with:
-          files: ./coverage.xml
-          fail_ci_if_error: true
-      - name: 執行 reporting tests
-        run: |
-          export PYTHONPATH=$PYTHONPATH:$(pwd)/src
-          python -m unittest tests/reporting/test_report.py
-      - name: 驗證 Great Expectations Schemas
-        run: great_expectations suite list
-      - name: 執行驗證 notebook
-        run: jupyter nbconvert --to notebook --execute docs/performance_validation.ipynb
-
-  deploy-docs:
-    needs: lint-and-test
-    if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: 設定 Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.12'
-      - name: 安裝依賴
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install mkdocs mkdocs-material mkdocstrings[python]
-      - name: 產生文件
-        run: mkdocs build
-      - name: 部署到 GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: site
-          cname: docs.zxquant.dev
-
-  stress-test:
-    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.run_locust == 'true' }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: 設定 Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.12'
-      - name: 安裝依賴
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install locust uvicorn
-      - name: 啟動 Proxy 服務
-        run: |
-          uvicorn 'data_ingestion.proxy:create_proxy_app("https://jsonplaceholder.typicode.com")' --factory --port 8000 &
-          sleep 5
-      - name: 執行 Locust 壓力測試
-        run: |
-          locust -f stress/locust_proxy.py --headless -u 100 -r 100 -t 1m --host http://localhost:8000
-
+      - name: Run pytest
+        run: pytest -q
+      - name: Build docs
+        run: mkdocs build --strict

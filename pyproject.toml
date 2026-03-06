@@ -1,54 +1,35 @@
 [tool.poetry]
-name = "backtest-data-module"
+name = "okx-trading-platform"
 version = "0.1.0"
-description = "A backtesting and data module for quantitative finance."
-authors = ["Your Name <you@example.com>"]
+description = "An OKX demo/live automated trading platform."
+authors = ["OpenAI Codex <codex@openai.com>"]
 license = "MIT"
 
-packages = [{ include = "backtest_data_module", from = "src" }]
+packages = [{ include = "okx_trading_platform", from = "src" }]
 
 [tool.poetry.scripts]
-zxq = "backtest_data_module.zxq.cli:app"
+okx-platform = "okx_trading_platform.cli.app:app"
 
 [tool.poetry.dependencies]
 python = "^3.12"
+fastapi = "*"
 httpx = "*"
-tenacity = "*"
-ratelimit = "*"
-pandas = "*"
-pandera = "*"
-polars = "*"
-scikit-learn = "*"
-numpy = "*"
+prometheus-client = "*"
+psycopg = {extras = ["binary"], version = "*"}
+pyyaml = "*"
+redis = "*"
+sqlalchemy = "*"
+typer = "*"
+uvicorn = "*"
+
+[tool.poetry.group.dev.dependencies]
+flake8 = "*"
+mkdocs = "*"
+mkdocs-material = "*"
+mkdocstrings = {extras = ["python"], version = "*"}
 pytest = "*"
 pytest-asyncio = "*"
 pytest-httpx = "*"
-flake8 = "*"
-pyyaml = "*"
-fastapi = "*"
-prefect = "*"
-prometheus-client = "*"
-typer = "*"
-mkdocs = "*"
-mkdocs-material = "*"
-locust = "*"
-uvicorn = "*"
-redis = "*"
-fakeredis = "*"
-aiomcache = "*"
-pandas-stubs = "*"
-types-PyYAML = "*"
-duckdb = "*"
-boto3 = "*"
-pyarrow = "*"
-kafka-python = "*"
-matplotlib = "*"
-reportlab = "*"
-mkdocstrings = {extras = ["python"], version = "*"}
-psycopg = {extras = ["binary"], version = "*"}
-cupy-cuda11x = "*"
-
-[tool.poetry.group.dev.dependencies]
 
 [build-system]
 requires = ["poetry-core"]

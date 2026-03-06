@@ -1,5 +1,0 @@
-steps:
-  - zxq.pipeline.steps.data_cleanser.DataCleanser
-  - zxq.pipeline.steps.missing_value_handler.MissingValueHandler
-  - zxq.pipeline.steps.time_aligner.TimeAligner
-  - zxq.pipeline.steps.feature_engineer.FeatureEngineer

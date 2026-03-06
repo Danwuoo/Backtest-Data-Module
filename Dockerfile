@@ -11,7 +11,7 @@ ENV PYTHONPATH=/app/src
 
 CMD [
   "uvicorn",
-  "backtest_data_module.trading.services.control_api:app",
+  "okx_trading_platform.services.control_api:app",
   "--host",
   "0.0.0.0",
   "--port",
