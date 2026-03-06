@@ -1,0 +1,110 @@
+{
+    "run_id": "test_ray_walk_forward",
+    "slices": [
+        {
+            "slice_id": 0,
+            "train_start": "2020-01-01T00:00:00",
+            "train_end": "2020-02-19T00:00:00",
+            "test_start": "2020-02-20T00:00:00",
+            "test_end": "2020-03-10T00:00:00",
+            "metrics": {
+                "total_return": 0.03900470905474007,
+                "sharpe": 3.6721746571299416,
+                "sortino": 445.35472790526364,
+                "max_drawdown": -0.018556875370389043,
+                "max_drawdown_duration": 4,
+                "var_95_cornish_fisher": -0.01107294256165222
+            }
+        },
+        {
+            "slice_id": 1,
+            "train_start": "2020-01-21T00:00:00",
+            "train_end": "2020-03-10T00:00:00",
+            "test_start": "2020-03-11T00:00:00",
+            "test_end": "2020-03-30T00:00:00",
+            "metrics": {
+                "total_return": 0.03900533701462794,
+                "sharpe": 3.672176207327346,
+                "sortino": 445.3479691486919,
+                "max_drawdown": -0.018557167125425485,
+                "max_drawdown_duration": 4,
+                "var_95_cornish_fisher": -0.01107311721472765
+            }
+        },
+        {
+            "slice_id": 2,
+            "train_start": "2020-02-10T00:00:00",
+            "train_end": "2020-03-30T00:00:00",
+            "test_start": "2020-03-31T00:00:00",
+            "test_end": "2020-04-19T00:00:00",
+            "metrics": {
+                "total_return": 0.03900596499473563,
+                "sharpe": 3.6721777575739147,
+                "sortino": 445.34121039223453,
+                "max_drawdown": -0.018557458889636138,
+                "max_drawdown_duration": 4,
+                "var_95_cornish_fisher": -0.011073291873313447
+            }
+        },
+        {
+            "slice_id": 3,
+            "train_start": "2020-03-01T00:00:00",
+            "train_end": "2020-04-19T00:00:00",
+            "test_start": "2020-04-20T00:00:00",
+            "test_end": "2020-05-09T00:00:00",
+            "metrics": {
+                "total_return": 0.039006592995064704,
+                "sharpe": 3.6721793078696483,
+                "sortino": 445.33445163587254,
+                "max_drawdown": -0.018557750663021438,
+                "max_drawdown_duration": 4,
+                "var_95_cornish_fisher": -0.011073466537409881
+            }
+        },
+        {
+            "slice_id": 4,
+            "train_start": "2020-03-21T00:00:00",
+            "train_end": "2020-05-09T00:00:00",
+            "test_start": "2020-05-10T00:00:00",
+            "test_end": "2020-05-29T00:00:00",
+            "metrics": {
+                "total_return": 0.0390072210156156,
+                "sharpe": 3.6721808582145496,
+                "sortino": 445.3276928796294,
+                "max_drawdown": -0.01855804244558181,
+                "max_drawdown_duration": 4,
+                "var_95_cornish_fisher": -0.011073641207017206
+            }
+        },
+        {
+            "slice_id": 5,
+            "train_start": "2020-04-10T00:00:00",
+            "train_end": "2020-05-29T00:00:00",
+            "test_start": "2020-05-30T00:00:00",
+            "test_end": "2020-06-18T00:00:00",
+            "metrics": {
+                "total_return": 0.039007849056389876,
+                "sharpe": 3.672182408608623,
+                "sortino": 445.3209341235029,
+                "max_drawdown": -0.018558334237317693,
+                "max_drawdown_duration": 4,
+                "var_95_cornish_fisher": -0.011073815882135683
+            }
+        },
+        {
+            "slice_id": 6,
+            "train_start": "2020-04-30T00:00:00",
+            "train_end": "2020-06-18T00:00:00",
+            "test_start": "2020-06-19T00:00:00",
+            "test_end": "2020-07-08T00:00:00",
+            "metrics": {
+                "total_return": 0.039008477117387974,
+                "sharpe": 3.672183959051871,
+                "sortino": 445.31417536747426,
+                "max_drawdown": -0.018558626038229515,
+                "max_drawdown_duration": 4,
+                "var_95_cornish_fisher": -0.011073990562765578
+            }
+        }
+    ]
+}

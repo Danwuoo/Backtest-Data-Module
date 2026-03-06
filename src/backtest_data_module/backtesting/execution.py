@@ -57,7 +57,25 @@ class PoissonLatency(LatencyModel):
         return np.random.poisson(self.lam)
 
 
-class Execution:
+class BrokerExecution(ABC):
+    """統一研究與實盤的執行介面。"""
+
+    @abstractmethod
+    def place_order(
+        self, order: OrderEvent, timestamp: Real | date | datetime
+    ) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def process_orders(
+        self,
+        current_time: Real | date | datetime,
+        price_data: Dict[str, Any],
+    ) -> List[FillEvent]:
+        raise NotImplementedError
+
+
+class Execution(BrokerExecution):
     def __init__(
         self,
         commission_model: CommissionModel = FlatCommission(),
@@ -121,3 +139,6 @@ class Execution:
                 }
             )
         return fills
+
+
+SimulatedExecution = Execution

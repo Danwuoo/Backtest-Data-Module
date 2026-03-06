@@ -1,17 +1,160 @@
-version: '3.9'
+version: "3.9"
+
 services:
-  app:
-    build: .
-    container_name: fastapi-proxy
+  postgres:
+    image: postgres:16-alpine
     environment:
-      - PROXY_TARGET=https://api.example.com
-    expose:
-      - "8000"
-  nginx:
-    image: nginx:alpine
-    volumes:
-      - ./proxy/conf/nginx.conf:/etc/nginx/nginx.conf:ro
+      POSTGRES_DB: ${POSTGRES_DB:-trading_platform}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
     ports:
-      - "80:80"
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  control-api:
+    build: .
+    command:
+      [
+        "uvicorn",
+        "backtest_data_module.trading.services.control_api:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8000"
+      ]
+    environment:
+      CONTROL_API_DATABASE_URL: ${CONTROL_API_DATABASE_URL:-postgresql+psycopg://postgres:postgres@postgres:5432/trading_platform}
+      TRADING_PROFILE: ${TRADING_PROFILE:-demo}
+      STRATEGY_MANAGER_API_KEY: ${STRATEGY_MANAGER_API_KEY:-}
     depends_on:
-      - app
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "${CONTROL_API_PORT:-8000}:8000"
+    profiles: ["demo", "live"]
+
+  market-data-service:
+    build: .
+    command:
+      [
+        "uvicorn",
+        "backtest_data_module.trading.services.market_data:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8101"
+      ]
+    environment:
+      TRADING_PROFILE: ${TRADING_PROFILE:-demo}
+    depends_on:
+      control-api:
+        condition: service_started
+      redis:
+        condition: service_healthy
+    ports:
+      - "${MARKET_DATA_PORT:-8101}:8101"
+    profiles: ["demo", "live"]
+
+  execution-service:
+    build: .
+    command:
+      [
+        "uvicorn",
+        "backtest_data_module.trading.services.execution:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8102"
+      ]
+    environment:
+      TRADING_PROFILE: ${TRADING_PROFILE:-demo}
+      OKX_DEMO_API_KEY: ${OKX_DEMO_API_KEY:-}
+      OKX_DEMO_SECRET_KEY: ${OKX_DEMO_SECRET_KEY:-}
+      OKX_DEMO_PASSPHRASE: ${OKX_DEMO_PASSPHRASE:-}
+      OKX_LIVE_API_KEY: ${OKX_LIVE_API_KEY:-}
+      OKX_LIVE_SECRET_KEY: ${OKX_LIVE_SECRET_KEY:-}
+      OKX_LIVE_PASSPHRASE: ${OKX_LIVE_PASSPHRASE:-}
+    depends_on:
+      control-api:
+        condition: service_started
+      redis:
+        condition: service_healthy
+    ports:
+      - "${EXECUTION_PORT:-8102}:8102"
+    profiles: ["demo", "live"]
+
+  risk-service:
+    build: .
+    command:
+      [
+        "uvicorn",
+        "backtest_data_module.trading.services.risk:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8103"
+      ]
+    environment:
+      TRADING_PROFILE: ${TRADING_PROFILE:-demo}
+    depends_on:
+      control-api:
+        condition: service_started
+    ports:
+      - "${RISK_PORT:-8103}:8103"
+    profiles: ["demo", "live"]
+
+  strategy-runner:
+    build: .
+    command:
+      [
+        "uvicorn",
+        "backtest_data_module.trading.services.strategy_runner:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8104"
+      ]
+    environment:
+      TRADING_PROFILE: ${TRADING_PROFILE:-demo}
+      REFERENCE_BOT_NAME: ${REFERENCE_BOT_NAME:-reference-breakout}
+      REFERENCE_INST_ID: ${REFERENCE_INST_ID:-BTC-USDT-SWAP}
+      REFERENCE_INSTRUMENT_KIND: ${REFERENCE_INSTRUMENT_KIND:-swap}
+      REFERENCE_TRIGGER_SPREAD: ${REFERENCE_TRIGGER_SPREAD:-0.002}
+      REFERENCE_ORDER_SIZE: ${REFERENCE_ORDER_SIZE:-1}
+    depends_on:
+      control-api:
+        condition: service_started
+      market-data-service:
+        condition: service_started
+      risk-service:
+        condition: service_started
+      execution-service:
+        condition: service_started
+    ports:
+      - "${STRATEGY_RUNNER_PORT:-8104}:8104"
+    profiles: ["demo", "live"]
+
+volumes:
+  postgres_data:
+  redis_data:

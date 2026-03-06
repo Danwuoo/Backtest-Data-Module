@@ -21,6 +21,7 @@ from backtest_data_module.data_storage import (
     HybridStorageManager,
 )
 from backtest_data_module.reporting.report import ReportGen
+from backtest_data_module.trading.control_api_client import ControlApiClient
 
 SNAPSHOT_DIR = Path("snapshots")
 RESTORE_DIR = Path("restored")
@@ -63,6 +64,9 @@ app.add_typer(backup_app, name="backup")
 
 orchestrator_app = typer.Typer(help="Orchestrator æŒ‡ä»¤")
 app.add_typer(orchestrator_app, name="orchestrator")
+
+platform_app = typer.Typer(help="OKX è‡ªå‹•äº¤æ˜“å¹³å°æŒ‡ä»¤")
+app.add_typer(platform_app, name="platform")
 
 
 @audit_app.command()
@@ -235,6 +239,120 @@ def generate_report(
     else:
         typer.echo(f"æœªçŸ¥çš„æ ¼å¼ï¼š{fmt}")
         raise typer.Exit(code=1)
+
+
+def _platform_client(base_url: str | None = None) -> ControlApiClient:
+    return ControlApiClient(base_url=base_url)
+
+
+@platform_app.command("status")
+def platform_status(
+    api_url: str | None = typer.Option(None, "--api-url", help="Control API ä½å€"),
+) -> None:
+    """æŸ¥çœ‹æœå‹™ã€�å¸³æˆ¶ profile èˆ‡ kill switch ç‹€æ…‹ã€‚"""
+    payload = _platform_client(api_url).status()
+    typer.echo(json.dumps(payload, indent=2, ensure_ascii=False))
+
+
+@platform_app.command("deploy")
+def platform_deploy(
+    bot_name: str = typer.Argument(..., help="è¦éƒ¨ç½²çš„ bot åç¨±"),
+    profile: str = typer.Option("demo", "--profile", help="demo æˆ– live"),
+    api_url: str | None = typer.Option(None, "--api-url", help="Control API ä½å€"),
+) -> None:
+    """å°‡ bot ç™»è¨˜ç‚ºå·²éƒ¨ç½²ã€‚"""
+    payload = _platform_client(api_url).deploy(bot_name, profile)
+    typer.echo(json.dumps(payload, indent=2, ensure_ascii=False))
+
+
+@platform_app.command("enable")
+def platform_enable(
+    bot_name: str = typer.Argument(..., help="è¦å•Ÿç”¨çš„ bot åç¨±"),
+    api_url: str | None = typer.Option(None, "--api-url", help="Control API ä½å€"),
+) -> None:
+    """å•Ÿç”¨ botã€‚"""
+    payload = _platform_client(api_url).enable_bot(bot_name)
+    typer.echo(json.dumps(payload, indent=2, ensure_ascii=False))
+
+
+@platform_app.command("disable")
+def platform_disable(
+    bot_name: str = typer.Argument(..., help="è¦åœç”¨çš„ bot åç¨±"),
+    api_url: str | None = typer.Option(None, "--api-url", help="Control API ä½å€"),
+) -> None:
+    """åœç”¨ botã€‚"""
+    payload = _platform_client(api_url).disable_bot(bot_name)
+    typer.echo(json.dumps(payload, indent=2, ensure_ascii=False))
+
+
+@platform_app.command("order")
+def platform_order(
+    profile: str = typer.Option("demo", "--profile", help="demo æˆ– live"),
+    inst_id: str = typer.Option(
+        ..., "--inst-id", help="OKX æ¨™çš„ï¼Œä¾‹å¦‚ BTC-USDT-SWAP"
+    ),
+    instrument_kind: str = typer.Option(
+        "swap", "--kind", help="spot æˆ– swap"
+    ),
+    side: str = typer.Option(..., "--side", help="buy æˆ– sell"),
+    size: float = typer.Option(..., "--size", help="ä¸‹å–®æ•¸é‡"),
+    order_type: str = typer.Option("market", "--type", help="market æˆ– limit"),
+    td_mode: str = typer.Option("isolated", "--td-mode", help="cash æˆ– isolated"),
+    price: float | None = typer.Option(None, "--price", help="limit å–®åƒ¹æ ¼"),
+    mark_price: float | None = typer.Option(
+        None, "--mark-price", help="risk service è©•ä¼°ç”¨å¸‚åƒ¹"
+    ),
+    bot_name: str | None = typer.Option(None, "--bot-name", help="ä¾†æº bot åç¨±"),
+    source: str = typer.Option("manual", "--source", help="è¨Šè™Ÿä¾†æº"),
+    submit: bool = typer.Option(False, "--submit", help="æ˜¯å¦ç›´æŽ¥é€²å…¥åŸ·è¡Œ"),
+    api_url: str | None = typer.Option(None, "--api-url", help="Control API ä½å€"),
+) -> None:
+    """å»ºç«‹è¨‚å–®æ„åœ–ï¼Œä¸¦å¯é¸æ“‡ç«‹å³æäº¤åŸ·è¡Œã€‚"""
+    payload = {
+        "profile": profile,
+        "instrument_kind": instrument_kind,
+        "inst_id": inst_id,
+        "side": side,
+        "size": size,
+        "order_type": order_type,
+        "td_mode": td_mode,
+        "price": price,
+        "bot_name": bot_name,
+        "source": source,
+        "metadata": {"mark_price": mark_price} if mark_price is not None else {},
+    }
+    response = _platform_client(api_url).create_order(payload, submit=submit)
+    typer.echo(json.dumps(response, indent=2, ensure_ascii=False))
+
+
+@platform_app.command("cancel")
+def platform_cancel(
+    profile: str = typer.Option("demo", "--profile", help="demo æˆ– live"),
+    inst_id: str = typer.Option(..., "--inst-id", help="OKX æ¨™çš„"),
+    order_id: str | None = typer.Option(None, "--order-id", help="å…§éƒ¨è¨‚å–® ID"),
+    client_order_id: str | None = typer.Option(
+        None, "--client-order-id", help="client order id"
+    ),
+    api_url: str | None = typer.Option(None, "--api-url", help="Control API ä½å€"),
+) -> None:
+    """å–æ¶ˆå·²ç™»è¨˜è¨‚å–®ã€‚"""
+    response = _platform_client(api_url).cancel_order(
+        profile=profile,
+        inst_id=inst_id,
+        order_id=order_id,
+        client_order_id=client_order_id,
+    )
+    typer.echo(json.dumps(response, indent=2, ensure_ascii=False))
+
+
+@platform_app.command("stop-all")
+def platform_stop_all(
+    reason: str = typer.Option("manual stop", "--reason", help="åœæ­¢åŽŸå› "),
+    api_url: str | None = typer.Option(None, "--api-url", help="Control API ä½å€"),
+) -> None:
+    """å•Ÿå‹• kill switchï¼Œåœæ­¢æ–°å–®ã€‚"""
+    response = _platform_client(api_url).stop_all(reason)
+    typer.echo(json.dumps(response, indent=2, ensure_ascii=False))
 
 
 if __name__ == "__main__":
