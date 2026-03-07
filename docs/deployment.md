@@ -27,13 +27,22 @@ The repository ships with a single-node V2 topology:
 Start demo mode:
 
 ```bash
-docker compose --profile demo --env-file .env.demo.example up --build
+cp .env.demo.example .env.demo
+docker compose --profile demo --env-file .env.demo up --build
 ```
 
 Start live mode:
 
 ```bash
-docker compose --profile live --env-file .env.live.example up --build
+cp .env.live.example .env.live
+docker compose --profile live --env-file .env.live up --build
 ```
 
 Keep demo and live credentials isolated and point both modes at their own profile IDs.
+
+OKX credentials are read from environment variables and should be placed in the matching env file:
+
+- demo: `OKX_DEMO_API_KEY`, `OKX_DEMO_SECRET_KEY`, `OKX_DEMO_PASSPHRASE`
+- live: `OKX_LIVE_API_KEY`, `OKX_LIVE_SECRET_KEY`, `OKX_LIVE_PASSPHRASE`
+
+The market-data service and execution service both need these variables when private capture is enabled.

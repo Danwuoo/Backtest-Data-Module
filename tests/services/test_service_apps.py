@@ -16,6 +16,16 @@ def test_market_data_service_health():
     assert response.json()["service"] == "market-data-service"
 
 
+def test_market_data_service_ingestion_plan():
+    client = TestClient(market_data_app)
+    response = client.get("/ingestion-plan")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["venue"] == "okx"
+    assert "credential_env_vars" in payload
+    assert any(job["stream"] == "bars_1s" for job in payload["public_jobs"])
+
+
 def test_execution_service_health():
     client = TestClient(execution_app)
     response = client.get("/healthz")

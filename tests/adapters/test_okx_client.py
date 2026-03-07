@@ -12,6 +12,7 @@ from okx_trading_platform.adapters.okx import (
     OkxRestClient,
     OkxWebSocketRouter,
     RateLimitGovernor,
+    build_okx_trade_fee_params,
 )
 from okx_trading_platform.domain import (
     InstrumentKind,
@@ -62,6 +63,42 @@ def test_okx_rest_client_adds_demo_header():
     )
     assert response.json() == {"ok": True}
     assert captured["headers"]["x-simulated-trading"] == "1"
+
+
+def test_okx_rest_client_signs_get_query_params(monkeypatch):
+    monkeypatch.setenv("OKX_DEMO_API_KEY", "key")
+    monkeypatch.setenv("OKX_DEMO_SECRET_KEY", "secret")
+    monkeypatch.setenv("OKX_DEMO_PASSPHRASE", "pass")
+    captured = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["headers"] = dict(request.headers)
+        captured["url"] = str(request.url)
+        return httpx.Response(200, json={"ok": True})
+
+    transport = httpx.MockTransport(handler)
+    client = OkxRestClient(http_client=httpx.Client(transport=transport))
+    response = client.request(
+        environment=TradingEnvironment.DEMO,
+        method="GET",
+        path="/api/v5/account/trade-fee",
+        params={"instType": "SWAP", "instFamily": "BTC-USDT"},
+        auth=True,
+    )
+
+    headers = {key.lower(): value for key, value in captured["headers"].items()}
+    timestamp = headers["ok-access-timestamp"]
+    expected = OkxRequestSigner.sign(
+        secret_key="secret",
+        timestamp=timestamp,
+        method="GET",
+        request_path="/api/v5/account/trade-fee?instType=SWAP&instFamily=BTC-USDT",
+    )
+    assert response.json() == {"ok": True}
+    assert headers["ok-access-sign"] == expected
+    assert captured["url"].endswith(
+        "/api/v5/account/trade-fee?instType=SWAP&instFamily=BTC-USDT"
+    )
 
 
 def test_okx_websocket_router_prefers_ws_for_market_orders():
@@ -122,3 +159,10 @@ def test_execution_gateway_rejects_duplicate_client_order_id():
     assert state.exchange_order_id == "123"
     with pytest.raises(ValueError, match="Duplicate client_order_id"):
         service.submit_order(plan)
+
+
+def test_trade_fee_params_use_inst_family_for_swap():
+    assert build_okx_trade_fee_params(
+        inst_type=InstrumentKind.SWAP,
+        inst_id="BTC-USDT-SWAP",
+    ) == {"instType": "SWAP", "instFamily": "BTC-USDT"}

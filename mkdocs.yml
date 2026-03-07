@@ -6,6 +6,8 @@ nav:
   - Architecture: architecture.md
   - Deployment: deployment.md
   - Configuration: configuration.md
+  - Data Lake: data-lake.md
+  - Market Data: market-data-ingestion.md
   - Operations: operations.md
   - Risk Controls: risk-controls.md
   - CLI: cli.md

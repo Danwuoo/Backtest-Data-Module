@@ -110,6 +110,8 @@ class OkxRestClient:
         settings = get_okx_profile_settings(environment)
         headers: dict[str, str] = {}
         content = json.dumps(body) if body else ""
+        query_params = httpx.QueryParams(params or {})
+        request_path = f"{path}?{query_params}" if query_params else path
         if auth:
             credentials = settings.credentials
             if not all(
@@ -130,7 +132,7 @@ class OkxRestClient:
                         secret_key=credentials.secret_key or "",
                         timestamp=timestamp,
                         method=method,
-                        request_path=path,
+                        request_path=request_path,
                         body=content,
                     ),
                 }
@@ -140,7 +142,7 @@ class OkxRestClient:
         return self._client.request(
             method=method.upper(),
             url=f"{settings.rest_base_url}{path}",
-            params=params,
+            params=query_params,
             content=content or None,
             headers=headers,
         )
@@ -342,6 +344,38 @@ def build_okx_order_payload(plan: OrderPlan, *, client_order_id: str) -> dict[st
     if plan.metadata.get("exp_time"):
         payload["expTime"] = str(plan.metadata["exp_time"])
     return payload
+
+
+def build_okx_trade_fee_params(
+    *,
+    inst_type: str | InstrumentKind,
+    inst_id: str,
+    inst_family: str | None = None,
+) -> dict[str, str]:
+    normalized_inst_type = (
+        enum_value(inst_type).upper()
+        if isinstance(inst_type, InstrumentKind)
+        else str(inst_type).upper()
+    )
+    params = {"instType": normalized_inst_type}
+    if normalized_inst_type in {"FUTURES", "SWAP", "OPTION"}:
+        family = inst_family or derive_okx_inst_family(inst_id)
+        if family is None:
+            raise ValueError(
+                "instFamily is required for futures, swap, "
+                "and option fee lookups"
+            )
+        params["instFamily"] = family
+        return params
+    params["instId"] = inst_id
+    return params
+
+
+def derive_okx_inst_family(inst_id: str) -> str | None:
+    parts = [part for part in inst_id.split("-") if part]
+    if len(parts) < 2:
+        return None
+    return "-".join(parts[:2])
 
 
 def normalize_order_state(
