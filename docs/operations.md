@@ -2,28 +2,24 @@
 
 ## Standard workflow
 
-1. Start `control-api`.
-2. Validate `/profiles` and `/healthz`.
-3. Allowlist instruments.
-4. Register or enable bots.
-5. Start service processes.
-6. Verify `/services` heartbeats.
-7. Place manual demo orders before enabling automated order flow.
+1. Run `alembic upgrade head`.
+2. Start `control-api`.
+3. Verify `/profiles`, `/kill-switch`, and `/healthz`.
+4. Start market data, inference, portfolio, execution policy, risk, execution, and replay services.
+5. Verify `/services` heartbeats.
+6. Seed strategies, model versions, instruments, and balances.
+7. Run manual demo orders before enabling automated flow.
 
 ## Kill switch
 
-The kill switch is a platform-wide block on new orders.
+The kill switch blocks new orders platform-wide.
 
 - Read the current state with `GET /kill-switch`
 - Activate it with `PUT /kill-switch`
 - Use `okx-platform stop-all --reason ...` for the fastest CLI path
 
-## Recovery
+## Migration and cutover
 
-After service restart, re-check:
-
-- balances
-- positions
-- open orders
-- service heartbeats
-- demo/live profile selection
+- Use Alembic for schema creation before application startup.
+- V1 `trading_*` tables are read during bootstrap and mapped into V2 `platform_*` tables.
+- `service_heartbeats` remain operational state and are not backfilled.

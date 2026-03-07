@@ -16,9 +16,7 @@ class ControlApiClient:
         resolved_base_url = base_url or os.getenv(
             "CONTROL_API_URL", "http://127.0.0.1:8000"
         )
-        resolved_api_key = api_key or os.getenv("CONTROL_API_KEY") or os.getenv(
-            "STRATEGY_MANAGER_API_KEY"
-        )
+        resolved_api_key = api_key or os.getenv("CONTROL_API_KEY")
         headers = {"X-API-KEY": resolved_api_key} if resolved_api_key else {}
         self._client = http_client or httpx.Client(
             base_url=resolved_base_url,
@@ -29,51 +27,44 @@ class ControlApiClient:
     def status(self) -> dict[str, Any]:
         return {
             "kill_switch": self._get("/kill-switch").json(),
-            "services": self._get("/services").json(),
-            "bots": self._get("/bots").json(),
             "profiles": self._get("/profiles").json(),
+            "strategies": self._get("/strategies").json(),
+            "services": self._get("/services").json(),
+            "alerts": self._get("/alerts").json(),
         }
-
-    def list_services(self, *, profile: str | None = None) -> list[dict[str, Any]]:
-        response = self._client.get(
-            "/services",
-            params={"profile": profile} if profile else None,
-        )
-        response.raise_for_status()
-        return response.json()
 
     def list_profiles(self) -> list[dict[str, Any]]:
         return self._get("/profiles").json()
 
-    def list_instruments(
-        self, *, profile: str | None = None, kind: str | None = None
+    def list_strategies(self, *, profile_id: str | None = None) -> list[dict[str, Any]]:
+        params = {"profile_id": profile_id} if profile_id else None
+        return self._get("/strategies", params=params).json()
+
+    def list_models(self, *, profile_id: str | None = None) -> list[dict[str, Any]]:
+        params = {"profile_id": profile_id} if profile_id else None
+        return self._get("/models", params=params).json()
+
+    def list_sleeves(self, *, profile_id: str | None = None) -> list[dict[str, Any]]:
+        params = {"profile_id": profile_id} if profile_id else None
+        return self._get("/sleeves", params=params).json()
+
+    def list_allocators(self, *, profile_id: str | None = None) -> list[dict[str, Any]]:
+        params = {"profile_id": profile_id} if profile_id else None
+        return self._get("/allocators", params=params).json()
+
+    def list_runs(
+        self, *, path: str, profile_id: str | None = None
     ) -> list[dict[str, Any]]:
-        params = {}
-        if profile:
-            params["profile"] = profile
-        if kind:
-            params["kind"] = kind
-        response = self._client.get("/instruments", params=params or None)
-        response.raise_for_status()
-        return response.json()
+        params = {"profile_id": profile_id} if profile_id else None
+        return self._get(path, params=params).json()
 
-    def deploy(self, bot_name: str, profile: str) -> dict[str, Any]:
-        response = self._client.post(
-            f"/bots/{bot_name}/deploy",
-            json={"profile": profile, "metadata": {}},
-        )
-        response.raise_for_status()
-        return response.json()
+    def list_incidents(self, *, profile_id: str | None = None) -> list[dict[str, Any]]:
+        params = {"profile_id": profile_id} if profile_id else None
+        return self._get("/incidents", params=params).json()
 
-    def enable_bot(self, bot_name: str) -> dict[str, Any]:
-        response = self._client.post(f"/bots/{bot_name}/enable")
-        response.raise_for_status()
-        return response.json()
-
-    def disable_bot(self, bot_name: str) -> dict[str, Any]:
-        response = self._client.post(f"/bots/{bot_name}/disable")
-        response.raise_for_status()
-        return response.json()
+    def list_alerts(self, *, profile_id: str | None = None) -> list[dict[str, Any]]:
+        params = {"profile_id": profile_id} if profile_id else None
+        return self._get("/alerts", params=params).json()
 
     def create_order(
         self, payload: dict[str, Any], *, submit: bool = False
@@ -81,26 +72,6 @@ class ControlApiClient:
         response = self._client.post(
             f"/orders?submit={'true' if submit else 'false'}",
             json=payload,
-        )
-        response.raise_for_status()
-        return response.json()
-
-    def cancel_order(
-        self,
-        *,
-        profile: str,
-        inst_id: str,
-        order_id: str | None = None,
-        client_order_id: str | None = None,
-    ) -> dict[str, Any]:
-        response = self._client.post(
-            "/orders/cancel",
-            json={
-                "profile": profile,
-                "inst_id": inst_id,
-                "order_id": order_id,
-                "client_order_id": client_order_id,
-            },
         )
         response.raise_for_status()
         return response.json()
@@ -113,7 +84,15 @@ class ControlApiClient:
         response.raise_for_status()
         return response.json()
 
-    def _get(self, path: str) -> httpx.Response:
-        response = self._client.get(path)
+    def migrate(self) -> list[dict[str, Any]]:
+        return self.list_profiles()
+
+    def cutover(self) -> dict[str, Any]:
+        return self.status()
+
+    def _get(
+        self, path: str, *, params: dict[str, Any] | None = None
+    ) -> httpx.Response:
+        response = self._client.get(path, params=params)
         response.raise_for_status()
         return response

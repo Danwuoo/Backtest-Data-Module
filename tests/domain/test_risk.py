@@ -1,29 +1,60 @@
 from okx_trading_platform.domain import (
     BalanceSnapshot,
+    InstrumentConfig,
     InstrumentKind,
-    OrderIntent,
+    OrderPlan,
     OrderSide,
+    RiskPolicyConfig,
+    SleeveConfig,
+    StrategyConfig,
+    StrategyStatus,
     TdMode,
-    TradingProfile,
 )
 from okx_trading_platform.domain.risk import RiskLimits, RiskManager
 
 
-def test_risk_service_blocks_when_kill_switch_active():
-    service = RiskManager()
-    service.activate_kill_switch("manual stop")
-    decision = service.evaluate_order(
-        OrderIntent(
-            profile=TradingProfile.DEMO,
-            instrument_kind=InstrumentKind.SWAP,
+def test_risk_service_blocks_when_platform_kill_switch_active():
+    manager = RiskManager()
+    manager.activate_kill_switch("manual stop")
+    decision = manager.evaluate_order(
+        OrderPlan(
+            profile_id="demo-main",
+            strategy_id="strategy-a",
+            model_version_id="model-a",
+            sleeve_id="demo-main-default-sleeve",
+            instrument_id="demo-main:BTC-USDT-SWAP",
             inst_id="BTC-USDT-SWAP",
+            kind=InstrumentKind.SWAP,
             side=OrderSide.BUY,
             size=1,
             td_mode=TdMode.ISOLATED,
-            metadata={"mark_price": 10},
+        ),
+        instrument=InstrumentConfig(
+            instrument_id="demo-main:BTC-USDT-SWAP",
+            profile_id="demo-main",
+            inst_id="BTC-USDT-SWAP",
+            kind=InstrumentKind.SWAP,
+            min_notional=5,
+        ),
+        sleeve=SleeveConfig(
+            sleeve_id="demo-main-default-sleeve",
+            profile_id="demo-main",
+            name="primary",
+        ),
+        strategy=StrategyConfig(
+            strategy_id="strategy-a",
+            profile_id="demo-main",
+            name="strategy-a",
+            status=StrategyStatus.ENABLED,
+        ),
+        policy=RiskPolicyConfig(
+            risk_policy_id="policy-a",
+            profile_id="demo-main",
+            name="default",
         ),
         balance=BalanceSnapshot(
-            profile=TradingProfile.DEMO,
+            profile_id="demo-main",
+            balance_snapshot_id="demo-main:USDT",
             currency="USDT",
             available=100,
             cash_balance=100,
@@ -34,22 +65,50 @@ def test_risk_service_blocks_when_kill_switch_active():
         mark_price=10,
     )
     assert decision.approved is False
-    assert decision.reason == "manual stop"
+    assert decision.reason == "platform kill switch activated"
 
 
 def test_risk_service_blocks_on_insufficient_balance():
-    service = RiskManager(limits=RiskLimits(min_notional=5, max_position_notional=100))
-    decision = service.evaluate_order(
-        OrderIntent(
-            profile=TradingProfile.DEMO,
-            instrument_kind=InstrumentKind.SWAP,
+    manager = RiskManager(limits=RiskLimits(min_notional=5, max_position_notional=100))
+    decision = manager.evaluate_order(
+        OrderPlan(
+            profile_id="demo-main",
+            strategy_id="strategy-a",
+            model_version_id="model-a",
+            sleeve_id="demo-main-default-sleeve",
+            instrument_id="demo-main:BTC-USDT-SWAP",
             inst_id="BTC-USDT-SWAP",
+            kind=InstrumentKind.SWAP,
             side=OrderSide.BUY,
             size=2,
             td_mode=TdMode.ISOLATED,
         ),
+        instrument=InstrumentConfig(
+            instrument_id="demo-main:BTC-USDT-SWAP",
+            profile_id="demo-main",
+            inst_id="BTC-USDT-SWAP",
+            kind=InstrumentKind.SWAP,
+            min_notional=5,
+        ),
+        sleeve=SleeveConfig(
+            sleeve_id="demo-main-default-sleeve",
+            profile_id="demo-main",
+            name="primary",
+        ),
+        strategy=StrategyConfig(
+            strategy_id="strategy-a",
+            profile_id="demo-main",
+            name="strategy-a",
+            status=StrategyStatus.ENABLED,
+        ),
+        policy=RiskPolicyConfig(
+            risk_policy_id="policy-a",
+            profile_id="demo-main",
+            name="default",
+        ),
         balance=BalanceSnapshot(
-            profile=TradingProfile.DEMO,
+            profile_id="demo-main",
+            balance_snapshot_id="demo-main:USDT",
             currency="USDT",
             available=10,
             cash_balance=10,

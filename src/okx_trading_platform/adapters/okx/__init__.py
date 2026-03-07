@@ -6,6 +6,7 @@ from .client import (
     OkxRequestSigner,
     OkxRestClient,
     OkxWebSocketRouter,
+    RateLimitGovernor,
     build_okx_order_payload,
     normalize_order_state,
 )
@@ -21,6 +22,7 @@ __all__ = [
     "OkxRequestSigner",
     "OkxRestClient",
     "OkxWebSocketRouter",
+    "RateLimitGovernor",
     "build_okx_order_payload",
     "get_okx_profile_settings",
     "normalize_order_state",

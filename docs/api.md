@@ -1,28 +1,40 @@
 # API
 
-## Endpoints
+## Core resources
 
-- `GET /profiles`
-- `POST /profiles`
-- `GET /instruments`
-- `POST /instruments`
-- `GET /bots`
-- `POST /bots`
-- `POST /bots/{bot_name}/enable`
-- `POST /bots/{bot_name}/disable`
-- `POST /bots/{bot_name}/deploy`
-- `GET /orders`
-- `POST /orders`
+- `GET/POST /profiles`
+- `GET/POST /risk-policies`
+- `GET/POST /allocators`
+- `GET/POST /sleeves`
+- `GET/POST /instruments`
+- `GET/POST /strategies`
+- `GET/POST /models`
+- `GET/POST /datasets`
+- `GET/POST /features`
+- `GET/POST /backtests`
+- `GET/POST /paper-runs`
+- `GET/POST /live-runs`
+
+## Trading and state
+
+- `GET/POST /orders`
 - `POST /orders/cancel`
-- `GET /positions`
-- `POST /positions`
-- `GET /balances`
-- `POST /balances`
-- `GET /services`
-- `POST /services`
-- `GET /kill-switch`
-- `PUT /kill-switch`
-- `GET /healthz`
+- `GET/POST /fills`
+- `GET /ledger`
+- `GET /funding`
+- `GET /pnl`
+- `GET /risk-snapshots`
+- `GET /execution-snapshots`
+- `GET/POST /positions`
+- `GET/POST /balances`
+- `GET/POST /services`
+- `GET/PUT /kill-switch`
+
+## Incidents and alerting
+
+- `GET/POST /incidents`
+- `GET/POST /alert-policies`
+- `GET/POST /alerts`
 
 ## Authentication
 

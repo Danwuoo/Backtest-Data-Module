@@ -12,8 +12,11 @@ def test_compose_defines_required_services():
         "control-api",
         "market-data-service",
         "execution-service",
+        "model-inference-service",
+        "portfolio-service",
+        "execution-policy-service",
+        "replay-service",
         "risk-service",
-        "strategy-runner",
     }
     assert required.issubset(services)
     assert "healthcheck" in services["postgres"]

@@ -19,7 +19,8 @@ gateway = OkxExchangeGateway(
 )
 runtime = ExecutionRuntime(
     service_name="execution-service",
-    profile=settings.trading_profile,
+    profile_id=settings.baseline_profile_id,
+    environment=settings.trading_environment,
     gateway=gateway,
 )
 runtime.set_running()
@@ -31,13 +32,14 @@ def healthz() -> dict:
     return {
         "service": runtime.service_name,
         "status": runtime.status,
-        "profile": runtime.profile,
+        "profile_id": runtime.profile_id,
+        "environment": runtime.environment,
         "ws_public": gateway.rest_client.websocket_url(
-            profile=runtime.profile,
+            environment=runtime.environment,
             private=False,
         ),
         "ws_private": gateway.rest_client.websocket_url(
-            profile=runtime.profile,
+            environment=runtime.environment,
             private=True,
         ),
     }

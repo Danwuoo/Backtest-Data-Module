@@ -2,19 +2,17 @@ from __future__ import annotations
 
 from fastapi import FastAPI
 
-from okx_trading_platform.shared.data_lake import DataLakeWriter
-from okx_trading_platform.shared.runtime import MarketDataRuntime
+from okx_trading_platform.shared.runtime import PortfolioRuntime
 from okx_trading_platform.shared.settings import get_platform_settings
 
 settings = get_platform_settings()
-runtime = MarketDataRuntime(
-    service_name="market-data-service",
+runtime = PortfolioRuntime(
+    service_name="portfolio-service",
     profile_id=settings.baseline_profile_id,
     environment=settings.trading_environment,
-    data_lake=DataLakeWriter(settings.platform_data_root, settings.duckdb_path),
 )
 runtime.set_running()
-app = FastAPI(title="OKX Market Data Service")
+app = FastAPI(title="OKX Portfolio Service")
 
 
 @app.get("/healthz")
@@ -24,7 +22,6 @@ def healthz() -> dict:
         "status": runtime.status,
         "profile_id": runtime.profile_id,
         "environment": runtime.environment,
-        "order_books": len(runtime.books),
     }
 
 

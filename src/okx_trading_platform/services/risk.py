@@ -10,7 +10,8 @@ settings = get_platform_settings()
 risk_manager = RiskManager()
 runtime = RiskRuntime(
     service_name="risk-service",
-    profile=settings.trading_profile,
+    profile_id=settings.baseline_profile_id,
+    environment=settings.trading_environment,
     risk_manager=risk_manager,
 )
 runtime.set_running()
@@ -22,7 +23,8 @@ def healthz() -> dict:
     return {
         "service": runtime.service_name,
         "status": runtime.status,
-        "profile": runtime.profile,
+        "profile_id": runtime.profile_id,
+        "environment": runtime.environment,
         "limits": runtime.risk_manager.limits.__dict__,
     }
 

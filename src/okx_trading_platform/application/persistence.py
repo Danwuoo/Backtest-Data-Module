@@ -13,6 +13,29 @@ def generate_id() -> str:
     return str(uuid.uuid4())
 
 
+class TimestampMixin:
+    created_at: Mapped[dt.datetime] = mapped_column(
+        DateTime,
+        default=dt.datetime.utcnow,
+        nullable=False,
+    )
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        DateTime,
+        default=dt.datetime.utcnow,
+        onupdate=dt.datetime.utcnow,
+        nullable=False,
+    )
+
+
+class PayloadMixin:
+    payload_json: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+
+
+class NamedResourceMixin(TimestampMixin, PayloadMixin):
+    name: Mapped[str] = mapped_column(String, nullable=False)
+
+
+# Legacy v1 tables kept for migration/backfill support.
 class TradingProfileModel(Base):
     __tablename__ = "trading_profiles"
 
@@ -214,4 +237,317 @@ class KillSwitchModel(Base):
     reason: Mapped[str | None] = mapped_column(String, nullable=True)
     updated_at: Mapped[dt.datetime] = mapped_column(
         DateTime, default=dt.datetime.utcnow, nullable=False
+    )
+
+
+# V2 platform tables.
+class ProfileV2Model(Base, NamedResourceMixin):
+    __tablename__ = "platform_profiles"
+
+    profile_id: Mapped[str] = mapped_column(String, primary_key=True)
+    environment: Mapped[str] = mapped_column(String, nullable=False)
+    account_scope: Mapped[str] = mapped_column(String, nullable=False)
+
+
+class RiskPolicyV2Model(Base, NamedResourceMixin):
+    __tablename__ = "platform_risk_policies"
+
+    risk_policy_id: Mapped[str] = mapped_column(String, primary_key=True)
+    profile_id: Mapped[str] = mapped_column(String, nullable=False)
+
+
+class AllocatorV2Model(Base, NamedResourceMixin):
+    __tablename__ = "platform_allocators"
+
+    allocator_id: Mapped[str] = mapped_column(String, primary_key=True)
+    profile_id: Mapped[str] = mapped_column(String, nullable=False)
+    policy_type: Mapped[str] = mapped_column(String, nullable=False)
+
+
+class SleeveV2Model(Base, NamedResourceMixin):
+    __tablename__ = "platform_sleeves"
+
+    sleeve_id: Mapped[str] = mapped_column(String, primary_key=True)
+    profile_id: Mapped[str] = mapped_column(String, nullable=False)
+    sleeve_type: Mapped[str] = mapped_column(String, nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+
+class InstrumentV2Model(Base, PayloadMixin):
+    __tablename__ = "platform_instruments"
+    __table_args__ = (
+        UniqueConstraint("profile_id", "inst_id", name="uq_platform_profile_inst"),
+    )
+
+    instrument_id: Mapped[str] = mapped_column(String, primary_key=True)
+    profile_id: Mapped[str] = mapped_column(String, nullable=False)
+    inst_id: Mapped[str] = mapped_column(String, nullable=False)
+    inst_id_code: Mapped[str | None] = mapped_column(String, nullable=True)
+    kind: Mapped[str] = mapped_column(String, nullable=False)
+    allow_trading: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    created_at: Mapped[dt.datetime] = mapped_column(
+        DateTime, default=dt.datetime.utcnow, nullable=False
+    )
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        DateTime,
+        default=dt.datetime.utcnow,
+        onupdate=dt.datetime.utcnow,
+        nullable=False,
+    )
+
+
+class StrategyV2Model(Base, NamedResourceMixin):
+    __tablename__ = "platform_strategies"
+
+    strategy_id: Mapped[str] = mapped_column(String, primary_key=True)
+    profile_id: Mapped[str] = mapped_column(String, nullable=False)
+    status: Mapped[str] = mapped_column(String, nullable=False)
+
+
+class ModelVersionV2Model(Base, NamedResourceMixin):
+    __tablename__ = "platform_model_versions"
+
+    model_version_id: Mapped[str] = mapped_column(String, primary_key=True)
+    profile_id: Mapped[str] = mapped_column(String, nullable=False)
+    strategy_id: Mapped[str] = mapped_column(String, nullable=False)
+    kind: Mapped[str] = mapped_column(String, nullable=False)
+    is_primary: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+
+class DatasetV2Model(Base, NamedResourceMixin):
+    __tablename__ = "platform_datasets"
+
+    dataset_id: Mapped[str] = mapped_column(String, primary_key=True)
+    profile_id: Mapped[str] = mapped_column(String, nullable=False)
+    layer: Mapped[str] = mapped_column(String, nullable=False)
+    path: Mapped[str] = mapped_column(String, nullable=False)
+
+
+class FeatureV2Model(Base, NamedResourceMixin):
+    __tablename__ = "platform_features"
+
+    feature_id: Mapped[str] = mapped_column(String, primary_key=True)
+    profile_id: Mapped[str] = mapped_column(String, nullable=False)
+    schema_version: Mapped[str] = mapped_column(String, nullable=False)
+    path: Mapped[str] = mapped_column(String, nullable=False)
+
+
+class RunBaseModel(Base, PayloadMixin):
+    __abstract__ = True
+
+    profile_id: Mapped[str] = mapped_column(String, nullable=False)
+    strategy_id: Mapped[str] = mapped_column(String, nullable=False)
+    status: Mapped[str] = mapped_column(String, nullable=False)
+    created_at: Mapped[dt.datetime] = mapped_column(
+        DateTime, default=dt.datetime.utcnow, nullable=False
+    )
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        DateTime,
+        default=dt.datetime.utcnow,
+        onupdate=dt.datetime.utcnow,
+        nullable=False,
+    )
+
+
+class BacktestRunV2Model(RunBaseModel):
+    __tablename__ = "platform_backtest_runs"
+
+    run_id: Mapped[str] = mapped_column(String, primary_key=True)
+
+
+class PaperRunV2Model(RunBaseModel):
+    __tablename__ = "platform_paper_runs"
+
+    run_id: Mapped[str] = mapped_column(String, primary_key=True)
+
+
+class LiveRunV2Model(RunBaseModel):
+    __tablename__ = "platform_live_runs"
+
+    run_id: Mapped[str] = mapped_column(String, primary_key=True)
+
+
+class OrderPlanV2Model(Base, PayloadMixin):
+    __tablename__ = "platform_order_plans"
+
+    order_plan_id: Mapped[str] = mapped_column(String, primary_key=True)
+    profile_id: Mapped[str] = mapped_column(String, nullable=False)
+    strategy_id: Mapped[str] = mapped_column(String, nullable=False)
+    sleeve_id: Mapped[str] = mapped_column(String, nullable=False)
+    inst_id: Mapped[str] = mapped_column(String, nullable=False)
+    status: Mapped[str] = mapped_column(String, nullable=False, default="planned")
+    created_at: Mapped[dt.datetime] = mapped_column(
+        DateTime, default=dt.datetime.utcnow, nullable=False
+    )
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        DateTime,
+        default=dt.datetime.utcnow,
+        onupdate=dt.datetime.utcnow,
+        nullable=False,
+    )
+
+
+class OrderV2Model(Base, PayloadMixin):
+    __tablename__ = "platform_orders"
+
+    order_id: Mapped[str] = mapped_column(String, primary_key=True)
+    client_order_id: Mapped[str] = mapped_column(String, unique=True, nullable=False)
+    profile_id: Mapped[str] = mapped_column(String, nullable=False)
+    strategy_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    sleeve_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    inst_id: Mapped[str] = mapped_column(String, nullable=False)
+    status: Mapped[str] = mapped_column(String, nullable=False)
+    created_at: Mapped[dt.datetime] = mapped_column(
+        DateTime, default=dt.datetime.utcnow, nullable=False
+    )
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        DateTime,
+        default=dt.datetime.utcnow,
+        onupdate=dt.datetime.utcnow,
+        nullable=False,
+    )
+
+
+class FillV2Model(Base, PayloadMixin):
+    __tablename__ = "platform_fills"
+
+    fill_id: Mapped[str] = mapped_column(String, primary_key=True)
+    order_id: Mapped[str] = mapped_column(String, nullable=False)
+    profile_id: Mapped[str] = mapped_column(String, nullable=False)
+    inst_id: Mapped[str] = mapped_column(String, nullable=False)
+    created_at: Mapped[dt.datetime] = mapped_column(
+        DateTime, default=dt.datetime.utcnow, nullable=False
+    )
+
+
+class LedgerEntryV2Model(Base, PayloadMixin):
+    __tablename__ = "platform_ledger_entries"
+
+    ledger_entry_id: Mapped[str] = mapped_column(String, primary_key=True)
+    profile_id: Mapped[str] = mapped_column(String, nullable=False)
+    order_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    entry_type: Mapped[str] = mapped_column(String, nullable=False)
+    created_at: Mapped[dt.datetime] = mapped_column(
+        DateTime, default=dt.datetime.utcnow, nullable=False
+    )
+
+
+class FundingEntryV2Model(Base, PayloadMixin):
+    __tablename__ = "platform_funding_entries"
+
+    funding_entry_id: Mapped[str] = mapped_column(String, primary_key=True)
+    profile_id: Mapped[str] = mapped_column(String, nullable=False)
+    inst_id: Mapped[str] = mapped_column(String, nullable=False)
+    created_at: Mapped[dt.datetime] = mapped_column(
+        DateTime, default=dt.datetime.utcnow, nullable=False
+    )
+
+
+class PnLSnapshotV2Model(Base, PayloadMixin):
+    __tablename__ = "platform_pnl_snapshots"
+
+    pnl_snapshot_id: Mapped[str] = mapped_column(String, primary_key=True)
+    profile_id: Mapped[str] = mapped_column(String, nullable=False)
+    created_at: Mapped[dt.datetime] = mapped_column(
+        DateTime, default=dt.datetime.utcnow, nullable=False
+    )
+
+
+class RiskSnapshotV2Model(Base, PayloadMixin):
+    __tablename__ = "platform_risk_snapshots"
+
+    risk_snapshot_id: Mapped[str] = mapped_column(String, primary_key=True)
+    profile_id: Mapped[str] = mapped_column(String, nullable=False)
+    order_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    stage: Mapped[str] = mapped_column(String, nullable=False)
+    created_at: Mapped[dt.datetime] = mapped_column(
+        DateTime, default=dt.datetime.utcnow, nullable=False
+    )
+
+
+class ExecutionSnapshotV2Model(Base, PayloadMixin):
+    __tablename__ = "platform_execution_snapshots"
+
+    execution_snapshot_id: Mapped[str] = mapped_column(String, primary_key=True)
+    profile_id: Mapped[str] = mapped_column(String, nullable=False)
+    order_id: Mapped[str] = mapped_column(String, nullable=False)
+    status: Mapped[str] = mapped_column(String, nullable=False)
+    created_at: Mapped[dt.datetime] = mapped_column(
+        DateTime, default=dt.datetime.utcnow, nullable=False
+    )
+
+
+class PositionV2Model(Base, PayloadMixin):
+    __tablename__ = "platform_positions"
+    __table_args__ = (
+        UniqueConstraint(
+            "profile_id", "inst_id", "sleeve_id", name="uq_platform_position"
+        ),
+    )
+
+    position_snapshot_id: Mapped[str] = mapped_column(String, primary_key=True)
+    profile_id: Mapped[str] = mapped_column(String, nullable=False)
+    sleeve_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    inst_id: Mapped[str] = mapped_column(String, nullable=False)
+    updated_at: Mapped[dt.datetime] = mapped_column(DateTime, nullable=False)
+
+
+class BalanceV2Model(Base, PayloadMixin):
+    __tablename__ = "platform_balances"
+    __table_args__ = (
+        UniqueConstraint("profile_id", "currency", name="uq_platform_currency"),
+    )
+
+    balance_snapshot_id: Mapped[str] = mapped_column(String, primary_key=True)
+    profile_id: Mapped[str] = mapped_column(String, nullable=False)
+    currency: Mapped[str] = mapped_column(String, nullable=False)
+    updated_at: Mapped[dt.datetime] = mapped_column(DateTime, nullable=False)
+
+
+class IncidentV2Model(Base, PayloadMixin):
+    __tablename__ = "platform_incidents"
+
+    incident_id: Mapped[str] = mapped_column(String, primary_key=True)
+    profile_id: Mapped[str] = mapped_column(String, nullable=False)
+    severity: Mapped[str] = mapped_column(String, nullable=False)
+    status: Mapped[str] = mapped_column(String, nullable=False)
+    title: Mapped[str] = mapped_column(String, nullable=False)
+    created_at: Mapped[dt.datetime] = mapped_column(
+        DateTime, default=dt.datetime.utcnow, nullable=False
+    )
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        DateTime,
+        default=dt.datetime.utcnow,
+        onupdate=dt.datetime.utcnow,
+        nullable=False,
+    )
+
+
+class AlertPolicyV2Model(Base, NamedResourceMixin):
+    __tablename__ = "platform_alert_policies"
+
+    alert_policy_id: Mapped[str] = mapped_column(String, primary_key=True)
+    profile_id: Mapped[str] = mapped_column(String, nullable=False)
+    severity_threshold: Mapped[str] = mapped_column(String, nullable=False)
+    channel: Mapped[str] = mapped_column(String, nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+
+class AlertV2Model(Base, PayloadMixin):
+    __tablename__ = "platform_alerts"
+
+    alert_id: Mapped[str] = mapped_column(String, primary_key=True)
+    profile_id: Mapped[str] = mapped_column(String, nullable=False)
+    incident_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    severity: Mapped[str] = mapped_column(String, nullable=False)
+    status: Mapped[str] = mapped_column(String, nullable=False)
+    title: Mapped[str] = mapped_column(String, nullable=False)
+    created_at: Mapped[dt.datetime] = mapped_column(
+        DateTime, default=dt.datetime.utcnow, nullable=False
+    )
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        DateTime,
+        default=dt.datetime.utcnow,
+        onupdate=dt.datetime.utcnow,
+        nullable=False,
     )

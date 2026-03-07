@@ -11,14 +11,15 @@ from okx_trading_platform.adapters.okx import (
     OkxRequestSigner,
     OkxRestClient,
     OkxWebSocketRouter,
+    RateLimitGovernor,
 )
 from okx_trading_platform.domain import (
     InstrumentKind,
-    OrderIntent,
+    OrderPlan,
     OrderSide,
     OrderType,
     TdMode,
-    TradingProfile,
+    TradingEnvironment,
 )
 
 
@@ -55,7 +56,7 @@ def test_okx_rest_client_adds_demo_header():
     transport = httpx.MockTransport(handler)
     client = OkxRestClient(http_client=httpx.Client(transport=transport))
     response = client.request(
-        profile=TradingProfile.DEMO,
+        environment=TradingEnvironment.DEMO,
         method="GET",
         path="/api/v5/public/time",
     )
@@ -65,34 +66,29 @@ def test_okx_rest_client_adds_demo_header():
 
 def test_okx_websocket_router_prefers_ws_for_market_orders():
     router = OkxWebSocketRouter(websocket_available=True)
-    intent = OrderIntent(
-        profile=TradingProfile.DEMO,
-        instrument_kind=InstrumentKind.SWAP,
+    plan = OrderPlan(
+        profile_id="demo-main",
+        strategy_id="strategy-a",
+        model_version_id="model-a",
+        sleeve_id="demo-main-default-sleeve",
+        instrument_id="demo-main:BTC-USDT-SWAP",
         inst_id="BTC-USDT-SWAP",
+        kind=InstrumentKind.SWAP,
         side=OrderSide.BUY,
         size=1,
         order_type=OrderType.MARKET,
         td_mode=TdMode.ISOLATED,
     )
-    assert router.choose_submit_route(intent) == "ws"
+    assert router.choose_submit_route(plan) == "ws"
 
 
-def test_okx_websocket_router_falls_back_to_rest_for_limit_orders():
-    router = OkxWebSocketRouter(websocket_available=True)
-    intent = OrderIntent(
-        profile=TradingProfile.DEMO,
-        instrument_kind=InstrumentKind.SPOT,
-        inst_id="BTC-USDT",
-        side=OrderSide.BUY,
-        size=1,
-        order_type=OrderType.LIMIT,
-        td_mode=TdMode.CASH,
-        price=30000,
-    )
-    assert router.choose_submit_route(intent) == "rest"
+def test_rate_limit_governor_blocks_bucket_when_limit_hit():
+    governor = RateLimitGovernor()
+    assert governor.allow("demo:BTC-USDT-SWAP", limit=1, interval_seconds=60) is True
+    assert governor.allow("demo:BTC-USDT-SWAP", limit=1, interval_seconds=60) is False
 
 
-def test_execution_service_rejects_duplicate_client_order_id():
+def test_execution_gateway_rejects_duplicate_client_order_id():
     class FakeResponse:
         def json(self):
             return {"data": [{"sCode": "0", "ordId": "123"}]}
@@ -106,18 +102,23 @@ def test_execution_service_rejects_duplicate_client_order_id():
         router=OkxWebSocketRouter(websocket_available=False),
         dedupe_cache=ClientOrderIdCache(),
     )
-    intent = OrderIntent(
-        profile=TradingProfile.DEMO,
-        instrument_kind=InstrumentKind.SWAP,
+    plan = OrderPlan(
+        order_plan_id="plan-1",
+        profile_id="demo-main",
+        strategy_id="strategy-a",
+        model_version_id="model-a",
+        sleeve_id="demo-main-default-sleeve",
+        instrument_id="demo-main:BTC-USDT-SWAP",
         inst_id="BTC-USDT-SWAP",
+        kind=InstrumentKind.SWAP,
         side=OrderSide.BUY,
         size=1,
         order_type=OrderType.LIMIT,
         td_mode=TdMode.ISOLATED,
         price=30000,
-        client_order_id="cl-1",
+        metadata={"client_order_id": "cl-1"},
     )
-    state = service.submit_order(intent)
+    state = service.submit_order(plan)
     assert state.exchange_order_id == "123"
     with pytest.raises(ValueError, match="Duplicate client_order_id"):
-        service.submit_order(intent)
+        service.submit_order(plan)

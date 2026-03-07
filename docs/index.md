@@ -1,12 +1,11 @@
-# OKX Trading Platform
+# OKX Trading Platform V2
 
-This documentation covers the production-facing shape of the repository after the migration away from research and backtesting modules.
+This documentation covers the V2 repository shape after the move from a narrow control plane to a researchable, replayable, sleeve-ready trading platform.
 
 Use this project when you need:
 
-- a control plane for OKX `demo` and `live` profiles
-- a thin service topology that fits a single VPS
-- deterministic order validation and kill-switch controls
-- a CLI for operations without a separate web dashboard
-
-The system is designed to be extended with additional signal providers later, but the current repository is intentionally optimized for platform reliability first.
+- a control plane for `demo` and `live` OKX profiles
+- a split runtime for market data, inference, portfolio, execution policy, risk, execution, and replay
+- deterministic + portfolio-aware risk controls
+- Parquet/DuckDB artifacts for replay, backtests, paper runs, and feature storage
+- alerting, incidents, and execution attribution without a separate dashboard

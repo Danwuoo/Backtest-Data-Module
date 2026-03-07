@@ -1,23 +1,24 @@
-# OKX Trading Platform
+# OKX Trading Platform V2
 
-OKX Trading Platform is a focused control plane and service runtime for automated trading on OKX. The repository supports `demo` and `live` profiles, `spot` and `USDT-settled swap` instruments, and a small set of services that can run on a single VPS with Docker Compose.
+OKX Trading Platform V2 is a control plane and service runtime for OKX trading that now includes replay, research artifacts, richer risk controls, execution analytics, sleeves, allocators, and alerting. The repository still targets a single-node deployment, but the runtime surface is no longer limited to a thin order gateway.
 
 ## Scope
 
-- `control-api` manages profiles, allowlisted instruments, bots, orders, balances, positions, service heartbeats, and the kill switch.
-- `market-data-service`, `execution-service`, `risk-service`, and `strategy-runner` provide deployable service entrypoints.
-- `okx-platform` is the CLI for control plane operations.
-- AI models, research notebooks, backtesting, and generic data platform modules are intentionally out of scope for this repository.
+- `control-api` manages profiles, sleeves, allocators, risk policies, strategies, model versions, datasets, features, runs, orders, fills, ledgers, PnL, incidents, alerts, balances, positions, and service heartbeats.
+- `market-data-service`, `model-inference-service`, `portfolio-service`, `execution-policy-service`, `risk-service`, `execution-service`, and `replay-service` provide deployable entrypoints.
+- PostgreSQL stores authoritative control-plane and trading state.
+- Redis Streams is the intended event bus between runtime services.
+- DuckDB + Parquet under `PLATFORM_DATA_ROOT` stores bronze/silver/gold research artifacts.
 
-## Project Layout
+## Runtime Topology
 
-- `src/okx_trading_platform/api`: FastAPI control plane and request schemas
-- `src/okx_trading_platform/application`: orchestration and repository layer
-- `src/okx_trading_platform/domain`: typed models and risk logic
-- `src/okx_trading_platform/adapters/okx`: OKX REST/WS routing, signing, and order book helpers
-- `src/okx_trading_platform/services`: deployable service entrypoints
-- `src/okx_trading_platform/shared`: shared auth, database, settings, logging, and runtime helpers
-- `docs/`: product, deployment, and operations documentation
+- `market-data-service`: order book sequence handling, instrument metadata sync, and lake writes.
+- `model-inference-service`: rule-baseline inference with registry-pinned model versions.
+- `portfolio-service`: sleeve-aware target to position intent conversion.
+- `execution-policy-service`: position intent to exchange-ready order plan conversion.
+- `risk-service`: pre-trade, post-trade, and portfolio risk decisions.
+- `execution-service`: OKX-aware submission, reconciliation, and execution analytics.
+- `replay-service`: replay, backtest, paper-run, and walk-forward scaffolding.
 
 ## Quick Start
 
@@ -30,13 +31,14 @@ uvicorn okx_trading_platform.services.control_api:app --reload
 In another shell:
 
 ```bash
-okx-platform profiles
 okx-platform status
+okx-platform profiles
+okx-platform strategies --profile-id demo-main
 ```
 
 ## Validation
 
-Any source change must pass:
+Any source change should pass:
 
 ```bash
 flake8 .

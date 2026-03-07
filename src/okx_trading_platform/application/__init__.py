@@ -3,21 +3,21 @@
 from .control_plane import CancelOrderCommand, ControlPlaneError, ControlPlaneService
 from .repositories import PlatformRepository
 from .signals import (
-    ManualSignalProvider,
-    ReferenceBreakoutSignalProvider,
-    SignalProvider,
-    signal_to_order_intent,
-    signals_to_order_intents,
+    InferenceProvider,
+    ManualInferenceProvider,
+    RuleBaselineInferenceProvider,
+    position_intent_to_order_plan,
+    target_to_position_intent,
 )
 
 __all__ = [
     "CancelOrderCommand",
     "ControlPlaneError",
     "ControlPlaneService",
-    "ManualSignalProvider",
+    "InferenceProvider",
+    "ManualInferenceProvider",
     "PlatformRepository",
-    "ReferenceBreakoutSignalProvider",
-    "SignalProvider",
-    "signal_to_order_intent",
-    "signals_to_order_intents",
+    "RuleBaselineInferenceProvider",
+    "position_intent_to_order_plan",
+    "target_to_position_intent",
 ]

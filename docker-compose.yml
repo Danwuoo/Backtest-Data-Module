@@ -45,6 +45,10 @@ services:
       CONTROL_API_DATABASE_URL: ${CONTROL_API_DATABASE_URL:-postgresql+psycopg://postgres:postgres@postgres:5432/trading_platform}
       CONTROL_API_KEY: ${CONTROL_API_KEY:-}
       TRADING_PROFILE: ${TRADING_PROFILE:-demo}
+      PLATFORM_DATA_ROOT: ${PLATFORM_DATA_ROOT:-/app/data/lake}
+      DUCKDB_PATH: ${DUCKDB_PATH:-/app/data/platform.duckdb}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -67,8 +71,10 @@ services:
       ]
     environment:
       TRADING_PROFILE: ${TRADING_PROFILE:-demo}
-      CONTROL_API_URL: ${CONTROL_API_URL:-http://control-api:8000}
-      CONTROL_API_KEY: ${CONTROL_API_KEY:-}
+      BASELINE_PROFILE_ID: ${BASELINE_PROFILE_ID:-demo-main}
+      PLATFORM_DATA_ROOT: ${PLATFORM_DATA_ROOT:-/app/data/lake}
+      DUCKDB_PATH: ${DUCKDB_PATH:-/app/data/platform.duckdb}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
     depends_on:
       control-api:
         condition: service_started
@@ -76,6 +82,82 @@ services:
         condition: service_healthy
     ports:
       - "${MARKET_DATA_PORT:-8101}:8101"
+    profiles: ["demo", "live"]
+
+  model-inference-service:
+    build: .
+    command:
+      [
+        "uvicorn",
+        "okx_trading_platform.services.model_inference:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8102"
+      ]
+    environment:
+      TRADING_PROFILE: ${TRADING_PROFILE:-demo}
+      BASELINE_PROFILE_ID: ${BASELINE_PROFILE_ID:-demo-main}
+      BASELINE_STRATEGY_ID: ${BASELINE_STRATEGY_ID:-reference-breakout}
+      BASELINE_MODEL_VERSION_ID: ${BASELINE_MODEL_VERSION_ID:-reference-breakout-baseline-v1}
+      BASELINE_INST_ID: ${BASELINE_INST_ID:-BTC-USDT-SWAP}
+      BASELINE_INSTRUMENT_KIND: ${BASELINE_INSTRUMENT_KIND:-swap}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+    depends_on:
+      control-api:
+        condition: service_started
+      market-data-service:
+        condition: service_started
+    ports:
+      - "${MODEL_INFERENCE_PORT:-8102}:8102"
+    profiles: ["demo", "live"]
+
+  portfolio-service:
+    build: .
+    command:
+      [
+        "uvicorn",
+        "okx_trading_platform.services.portfolio:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8103"
+      ]
+    environment:
+      TRADING_PROFILE: ${TRADING_PROFILE:-demo}
+      BASELINE_PROFILE_ID: ${BASELINE_PROFILE_ID:-demo-main}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+    depends_on:
+      control-api:
+        condition: service_started
+      model-inference-service:
+        condition: service_started
+    ports:
+      - "${PORTFOLIO_PORT:-8103}:8103"
+    profiles: ["demo", "live"]
+
+  execution-policy-service:
+    build: .
+    command:
+      [
+        "uvicorn",
+        "okx_trading_platform.services.execution_policy:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8104"
+      ]
+    environment:
+      TRADING_PROFILE: ${TRADING_PROFILE:-demo}
+      BASELINE_PROFILE_ID: ${BASELINE_PROFILE_ID:-demo-main}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+    depends_on:
+      portfolio-service:
+        condition: service_started
+      risk-service:
+        condition: service_started
+    ports:
+      - "${EXECUTION_POLICY_PORT:-8104}:8104"
     profiles: ["demo", "live"]
 
   execution-service:
@@ -87,12 +169,12 @@ services:
         "--host",
         "0.0.0.0",
         "--port",
-        "8102"
+        "8105"
       ]
     environment:
       TRADING_PROFILE: ${TRADING_PROFILE:-demo}
-      CONTROL_API_URL: ${CONTROL_API_URL:-http://control-api:8000}
-      CONTROL_API_KEY: ${CONTROL_API_KEY:-}
+      BASELINE_PROFILE_ID: ${BASELINE_PROFILE_ID:-demo-main}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       OKX_DEMO_API_KEY: ${OKX_DEMO_API_KEY:-}
       OKX_DEMO_SECRET_KEY: ${OKX_DEMO_SECRET_KEY:-}
       OKX_DEMO_PASSPHRASE: ${OKX_DEMO_PASSPHRASE:-}
@@ -102,10 +184,38 @@ services:
     depends_on:
       control-api:
         condition: service_started
+      execution-policy-service:
+        condition: service_started
       redis:
         condition: service_healthy
     ports:
-      - "${EXECUTION_PORT:-8102}:8102"
+      - "${EXECUTION_PORT:-8105}:8105"
+    profiles: ["demo", "live"]
+
+  replay-service:
+    build: .
+    command:
+      [
+        "uvicorn",
+        "okx_trading_platform.services.replay:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8106"
+      ]
+    environment:
+      TRADING_PROFILE: ${TRADING_PROFILE:-demo}
+      BASELINE_PROFILE_ID: ${BASELINE_PROFILE_ID:-demo-main}
+      PLATFORM_DATA_ROOT: ${PLATFORM_DATA_ROOT:-/app/data/lake}
+      DUCKDB_PATH: ${DUCKDB_PATH:-/app/data/platform.duckdb}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+    depends_on:
+      control-api:
+        condition: service_started
+      market-data-service:
+        condition: service_started
+    ports:
+      - "${REPLAY_PORT:-8106}:8106"
     profiles: ["demo", "live"]
 
   risk-service:
@@ -117,50 +227,19 @@ services:
         "--host",
         "0.0.0.0",
         "--port",
-        "8103"
+        "8107"
       ]
     environment:
       TRADING_PROFILE: ${TRADING_PROFILE:-demo}
-      CONTROL_API_URL: ${CONTROL_API_URL:-http://control-api:8000}
-      CONTROL_API_KEY: ${CONTROL_API_KEY:-}
+      BASELINE_PROFILE_ID: ${BASELINE_PROFILE_ID:-demo-main}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
     depends_on:
       control-api:
         condition: service_started
+      redis:
+        condition: service_healthy
     ports:
-      - "${RISK_PORT:-8103}:8103"
-    profiles: ["demo", "live"]
-
-  strategy-runner:
-    build: .
-    command:
-      [
-        "uvicorn",
-        "okx_trading_platform.services.strategy_runner:app",
-        "--host",
-        "0.0.0.0",
-        "--port",
-        "8104"
-      ]
-    environment:
-      TRADING_PROFILE: ${TRADING_PROFILE:-demo}
-      CONTROL_API_URL: ${CONTROL_API_URL:-http://control-api:8000}
-      CONTROL_API_KEY: ${CONTROL_API_KEY:-}
-      REFERENCE_BOT_NAME: ${REFERENCE_BOT_NAME:-reference-breakout}
-      REFERENCE_INST_ID: ${REFERENCE_INST_ID:-BTC-USDT-SWAP}
-      REFERENCE_INSTRUMENT_KIND: ${REFERENCE_INSTRUMENT_KIND:-swap}
-      REFERENCE_TRIGGER_SPREAD: ${REFERENCE_TRIGGER_SPREAD:-0.002}
-      REFERENCE_ORDER_SIZE: ${REFERENCE_ORDER_SIZE:-1}
-    depends_on:
-      control-api:
-        condition: service_started
-      market-data-service:
-        condition: service_started
-      risk-service:
-        condition: service_started
-      execution-service:
-        condition: service_started
-    ports:
-      - "${STRATEGY_RUNNER_PORT:-8104}:8104"
+      - "${RISK_PORT:-8107}:8107"
     profiles: ["demo", "live"]
 
 volumes:

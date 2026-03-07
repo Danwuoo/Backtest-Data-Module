@@ -1,41 +1,79 @@
 from okx_trading_platform.application.signals import (
-    ManualSignalProvider,
-    ReferenceBreakoutSignalProvider,
-    signals_to_order_intents,
+    RuleBaselineInferenceProvider,
+    position_intent_to_order_plan,
+    target_to_position_intent,
 )
-from okx_trading_platform.domain import InstrumentKind, SignalEnvelope, TradingProfile
+from okx_trading_platform.domain import (
+    InstrumentConfig,
+    InstrumentKind,
+    SleeveConfig,
+)
 
 
-def test_manual_signal_provider_yields_enqueued_signal():
-    provider = ManualSignalProvider()
-    signal = SignalEnvelope(
-        bot_name="manual",
+def test_rule_baseline_provider_emits_target_signal_on_breakout():
+    provider = RuleBaselineInferenceProvider(
+        profile_id="demo-main",
+        strategy_id="reference-breakout",
+        model_version_id="reference-breakout-baseline-v1",
+        instrument_id="demo-main:BTC-USDT-SWAP",
         inst_id="BTC-USDT-SWAP",
-        profile=TradingProfile.DEMO,
-        instrument_kind=InstrumentKind.SWAP,
-        side="buy",
-        size=1,
-    )
-    provider.enqueue(signal)
-    signals = list(provider.next_signals({}))
-    assert len(signals) == 1
-    assert signals[0].bot_name == "manual"
-
-
-def test_reference_breakout_provider_emits_signal():
-    provider = ReferenceBreakoutSignalProvider(
-        bot_name="reference",
-        profile=TradingProfile.DEMO,
-        inst_id="BTC-USDT-SWAP",
-        instrument_kind=InstrumentKind.SWAP,
-        trigger_spread=0.001,
-        size=1,
+        kind=InstrumentKind.SWAP,
+        threshold_bps=10,
+        target_size=2,
     )
     signals = list(
-        provider.next_signals(
-            {"best_bid": 100, "best_ask": 101, "last_price": 102}
+        provider.infer_targets(
+            {
+                "best_bid": 100,
+                "best_ask": 101,
+                "last_price": 102,
+            }
         )
     )
-    assert signals
-    intents = signals_to_order_intents(signals)
-    assert intents[0].td_mode == "isolated"
+
+    assert len(signals) == 1
+    assert signals[0].side == "buy"
+    assert signals[0].target_size == 2
+
+
+def test_target_signal_converts_to_order_plan():
+    provider = RuleBaselineInferenceProvider(
+        profile_id="demo-main",
+        strategy_id="reference-breakout",
+        model_version_id="reference-breakout-baseline-v1",
+        instrument_id="demo-main:BTC-USDT-SWAP",
+        inst_id="BTC-USDT-SWAP",
+        kind=InstrumentKind.SWAP,
+        threshold_bps=10,
+        target_size=1,
+    )
+    signal = list(
+        provider.infer_targets(
+            {
+                "best_bid": 100,
+                "best_ask": 101,
+                "last_price": 99,
+            }
+        )
+    )[0]
+    sleeve = SleeveConfig(
+        sleeve_id="demo-main-default-sleeve",
+        profile_id="demo-main",
+        name="primary",
+        capital_allocation=0.5,
+        risk_budget=0.25,
+    )
+    instrument = InstrumentConfig(
+        instrument_id="demo-main:BTC-USDT-SWAP",
+        profile_id="demo-main",
+        inst_id="BTC-USDT-SWAP",
+        kind=InstrumentKind.SWAP,
+        min_notional=5,
+    )
+
+    intent = target_to_position_intent(signal, sleeve)
+    plan = position_intent_to_order_plan(intent, instrument)
+
+    assert intent.target_size == 0.5
+    assert plan.sleeve_id == sleeve.sleeve_id
+    assert plan.instrument_id == instrument.instrument_id

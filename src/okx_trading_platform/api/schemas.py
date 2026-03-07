@@ -1,20 +1,30 @@
 from __future__ import annotations
 
-from typing import Any
-
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict
 
 from okx_trading_platform.domain import (
+    AlertPolicy,
+    AlertRecord,
+    AllocatorConfig,
+    BacktestRun,
     BalanceSnapshot,
-    BotConfig,
-    DeploymentRecord,
+    DatasetRecord,
+    FeatureSet,
+    FillRecord,
+    IncidentRecord,
     InstrumentConfig,
     KillSwitchState,
-    OrderIntent,
+    LiveRun,
+    ModelVersion,
+    OrderPlan,
     OrderState,
+    PaperRun,
     PositionSnapshot,
     ProfileConfig,
+    RiskPolicyConfig,
     ServiceHeartbeat,
+    SleeveConfig,
+    StrategyConfig,
 )
 
 
@@ -26,6 +36,30 @@ class Profile(ProfileConfig):
     model_config = ConfigDict(use_enum_values=True)
 
 
+class RiskPolicyCreate(RiskPolicyConfig):
+    pass
+
+
+class RiskPolicy(RiskPolicyConfig):
+    model_config = ConfigDict(use_enum_values=True)
+
+
+class AllocatorCreate(AllocatorConfig):
+    pass
+
+
+class Allocator(AllocatorConfig):
+    model_config = ConfigDict(use_enum_values=True)
+
+
+class SleeveCreate(SleeveConfig):
+    pass
+
+
+class Sleeve(SleeveConfig):
+    model_config = ConfigDict(use_enum_values=True)
+
+
 class InstrumentCreate(InstrumentConfig):
     pass
 
@@ -34,24 +68,63 @@ class Instrument(InstrumentConfig):
     model_config = ConfigDict(use_enum_values=True)
 
 
-class BotCreate(BotConfig):
+class StrategyCreate(StrategyConfig):
     pass
 
 
-class Bot(BotConfig):
+class Strategy(StrategyConfig):
     model_config = ConfigDict(use_enum_values=True)
 
 
-class DeploymentCreate(BaseModel):
-    profile: str
-    metadata: dict[str, Any] = Field(default_factory=dict)
+class ModelVersionCreate(ModelVersion):
+    pass
 
 
-class Deployment(DeploymentRecord):
+class Model(ModelVersion):
     model_config = ConfigDict(use_enum_values=True)
 
 
-class OrderCreate(OrderIntent):
+class DatasetCreate(DatasetRecord):
+    pass
+
+
+class Dataset(DatasetRecord):
+    model_config = ConfigDict(use_enum_values=True)
+
+
+class FeatureCreate(FeatureSet):
+    pass
+
+
+class Feature(FeatureSet):
+    model_config = ConfigDict(use_enum_values=True)
+
+
+class BacktestCreate(BacktestRun):
+    pass
+
+
+class Backtest(BacktestRun):
+    model_config = ConfigDict(use_enum_values=True)
+
+
+class PaperRunCreate(PaperRun):
+    pass
+
+
+class PaperRunSchema(PaperRun):
+    model_config = ConfigDict(use_enum_values=True)
+
+
+class LiveRunCreate(LiveRun):
+    pass
+
+
+class LiveRunSchema(LiveRun):
+    model_config = ConfigDict(use_enum_values=True)
+
+
+class OrderCreate(OrderPlan):
     pass
 
 
@@ -59,11 +132,19 @@ class Order(OrderState):
     model_config = ConfigDict(use_enum_values=True)
 
 
-class Balance(BalanceSnapshot):
+class FillCreate(FillRecord):
+    pass
+
+
+class Fill(FillRecord):
     model_config = ConfigDict(use_enum_values=True)
 
 
 class Position(PositionSnapshot):
+    model_config = ConfigDict(use_enum_values=True)
+
+
+class Balance(BalanceSnapshot):
     model_config = ConfigDict(use_enum_values=True)
 
 
@@ -72,6 +153,30 @@ class HeartbeatCreate(ServiceHeartbeat):
 
 
 class Heartbeat(ServiceHeartbeat):
+    model_config = ConfigDict(use_enum_values=True)
+
+
+class IncidentCreate(IncidentRecord):
+    pass
+
+
+class Incident(IncidentRecord):
+    model_config = ConfigDict(use_enum_values=True)
+
+
+class AlertPolicyCreate(AlertPolicy):
+    pass
+
+
+class AlertPolicySchema(AlertPolicy):
+    model_config = ConfigDict(use_enum_values=True)
+
+
+class AlertCreate(AlertRecord):
+    pass
+
+
+class Alert(AlertRecord):
     model_config = ConfigDict(use_enum_values=True)
 
 
@@ -85,7 +190,4 @@ class KillSwitch(KillSwitchState):
 
 
 class CancelOrderRequest(BaseModel):
-    profile: str
-    inst_id: str
-    order_id: str | None = None
-    client_order_id: str | None = None
+    order_id: str

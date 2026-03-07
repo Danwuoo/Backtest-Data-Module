@@ -12,15 +12,19 @@ okx-platform = "okx_trading_platform.cli.app:app"
 
 [tool.poetry.dependencies]
 python = "^3.12"
+alembic = "*"
+duckdb = "*"
 fastapi = "*"
 httpx = "*"
 prometheus-client = "*"
 psycopg = {extras = ["binary"], version = "*"}
+pyarrow = "*"
 pyyaml = "*"
 redis = "*"
 sqlalchemy = "*"
 typer = "*"
 uvicorn = "*"
+websockets = "*"
 
 [tool.poetry.group.dev.dependencies]
 flake8 = "*"

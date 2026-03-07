@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 
-from okx_trading_platform.domain import TradingProfile
+from okx_trading_platform.domain import TradingEnvironment
 
 OKX_LIVE_REST_URL = "https://www.okx.com"
 OKX_DEMO_REST_URL = "https://www.okx.com"
@@ -22,7 +22,7 @@ class OkxCredentials:
 
 @dataclass(frozen=True)
 class OkxProfileSettings:
-    profile: TradingProfile
+    environment: TradingEnvironment
     rest_base_url: str
     public_ws_url: str
     private_ws_url: str
@@ -39,10 +39,10 @@ class OkxProfileSettings:
         )
 
 
-def get_okx_profile_settings(profile: TradingProfile) -> OkxProfileSettings:
-    if profile == TradingProfile.DEMO:
+def get_okx_profile_settings(environment: TradingEnvironment) -> OkxProfileSettings:
+    if environment == TradingEnvironment.DEMO:
         return OkxProfileSettings(
-            profile=profile,
+            environment=environment,
             rest_base_url=os.getenv("OKX_DEMO_REST_URL", OKX_DEMO_REST_URL),
             public_ws_url=os.getenv("OKX_DEMO_PUBLIC_WS_URL", OKX_DEMO_PUBLIC_WS_URL),
             private_ws_url=os.getenv(
@@ -54,7 +54,7 @@ def get_okx_profile_settings(profile: TradingProfile) -> OkxProfileSettings:
             ),
         )
     return OkxProfileSettings(
-        profile=profile,
+        environment=environment,
         rest_base_url=os.getenv("OKX_LIVE_REST_URL", OKX_LIVE_REST_URL),
         public_ws_url=os.getenv("OKX_LIVE_PUBLIC_WS_URL", OKX_LIVE_PUBLIC_WS_URL),
         private_ws_url=os.getenv("OKX_LIVE_PRIVATE_WS_URL", OKX_LIVE_PRIVATE_WS_URL),

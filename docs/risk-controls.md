@@ -1,15 +1,26 @@
 # Risk Controls
 
-The v1 platform includes deterministic pre-trade checks:
+V2 risk control is no longer limited to deterministic pre-trade checks.
 
-- kill switch
+## Pre-trade
+
+- platform kill switch
+- per-sleeve and per-strategy kill switch
 - stale market data block
-- consecutive error circuit breaker
-- maximum open orders
-- daily loss guard
-- minimum notional
-- isolated margin buffer
+- max open orders
+- min notional and instrument min size
 - available balance validation
-- maximum position exposure
+- isolated margin buffer
+- position exposure cap
+- spread, impact, volatility, and latency guards
 
-Risk evaluation is implemented in `okx_trading_platform.domain.risk.RiskManager`. Trading logic must go through the control plane or an equivalent risk gate before reaching the execution gateway.
+## Post-trade and portfolio
+
+- execution latency degradation guard
+- funding exposure cap
+- liquidation distance guard
+- hourly and daily loss limits
+- consecutive-loss cooldown
+- persisted `risk_snapshots` for accepted and rejected flow
+
+Risk evaluation is implemented in `okx_trading_platform.domain.risk.RiskManager`. All live order flow should pass through the control plane or an equivalent risk gate before reaching the execution gateway.

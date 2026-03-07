@@ -1,9 +1,13 @@
+alembic
+duckdb
 fastapi
 httpx
 prometheus-client
 psycopg[binary]
+pyarrow
 pyyaml
 redis
 sqlalchemy
 typer
 uvicorn
+websockets

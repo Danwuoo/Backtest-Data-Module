@@ -7,6 +7,8 @@ import typer
 from .client import ControlApiClient
 
 app = typer.Typer(help="Operate the OKX Trading Platform control plane.")
+runs_app = typer.Typer(help="Inspect backtest, paper, and live runs.")
+app.add_typer(runs_app, name="runs")
 
 
 def _platform_client(base_url: str | None = None) -> ControlApiClient:
@@ -24,35 +26,103 @@ def status(
     _emit(_platform_client(base_url).status())
 
 
-@app.command("deploy")
-def deploy(
-    bot_name: str = typer.Argument(..., help="Bot name."),
-    profile: str = typer.Option(..., "--profile", help="Target trading profile."),
+@app.command("profiles")
+def profiles(
+    base_url: str | None = typer.Option(None, help="Control API base URL.")
+) -> None:
+    _emit(_platform_client(base_url).list_profiles())
+
+
+@app.command("strategies")
+def strategies(
+    profile_id: str | None = typer.Option(None, "--profile-id", help="Profile ID."),
     base_url: str | None = typer.Option(None, help="Control API base URL."),
 ) -> None:
-    _emit(_platform_client(base_url).deploy(bot_name, profile))
+    _emit(_platform_client(base_url).list_strategies(profile_id=profile_id))
 
 
-@app.command("enable")
-def enable(
-    bot_name: str = typer.Argument(..., help="Bot name."),
+@app.command("models")
+def models(
+    profile_id: str | None = typer.Option(None, "--profile-id", help="Profile ID."),
     base_url: str | None = typer.Option(None, help="Control API base URL."),
 ) -> None:
-    _emit(_platform_client(base_url).enable_bot(bot_name))
+    _emit(_platform_client(base_url).list_models(profile_id=profile_id))
 
 
-@app.command("disable")
-def disable(
-    bot_name: str = typer.Argument(..., help="Bot name."),
+@app.command("sleeves")
+def sleeves(
+    profile_id: str | None = typer.Option(None, "--profile-id", help="Profile ID."),
     base_url: str | None = typer.Option(None, help="Control API base URL."),
 ) -> None:
-    _emit(_platform_client(base_url).disable_bot(bot_name))
+    _emit(_platform_client(base_url).list_sleeves(profile_id=profile_id))
+
+
+@app.command("allocators")
+def allocators(
+    profile_id: str | None = typer.Option(None, "--profile-id", help="Profile ID."),
+    base_url: str | None = typer.Option(None, help="Control API base URL."),
+) -> None:
+    _emit(_platform_client(base_url).list_allocators(profile_id=profile_id))
+
+
+@runs_app.command("backtests")
+def backtests(
+    profile_id: str | None = typer.Option(None, "--profile-id", help="Profile ID."),
+    base_url: str | None = typer.Option(None, help="Control API base URL."),
+) -> None:
+    _emit(
+        _platform_client(base_url).list_runs(path="/backtests", profile_id=profile_id)
+    )
+
+
+@runs_app.command("paper")
+def paper_runs(
+    profile_id: str | None = typer.Option(None, "--profile-id", help="Profile ID."),
+    base_url: str | None = typer.Option(None, help="Control API base URL."),
+) -> None:
+    _emit(
+        _platform_client(base_url).list_runs(path="/paper-runs", profile_id=profile_id)
+    )
+
+
+@runs_app.command("live")
+def live_runs(
+    profile_id: str | None = typer.Option(None, "--profile-id", help="Profile ID."),
+    base_url: str | None = typer.Option(None, help="Control API base URL."),
+) -> None:
+    _emit(
+        _platform_client(base_url).list_runs(path="/live-runs", profile_id=profile_id)
+    )
+
+
+@app.command("incidents")
+def incidents(
+    profile_id: str | None = typer.Option(None, "--profile-id", help="Profile ID."),
+    base_url: str | None = typer.Option(None, help="Control API base URL."),
+) -> None:
+    _emit(_platform_client(base_url).list_incidents(profile_id=profile_id))
+
+
+@app.command("alerts")
+def alerts(
+    profile_id: str | None = typer.Option(None, "--profile-id", help="Profile ID."),
+    base_url: str | None = typer.Option(None, help="Control API base URL."),
+) -> None:
+    _emit(_platform_client(base_url).list_alerts(profile_id=profile_id))
 
 
 @app.command("order")
 def order(
-    profile: str = typer.Option(..., "--profile", help="Trading profile."),
-    inst_id: str = typer.Option(..., "--inst-id", help="Instrument identifier."),
+    profile_id: str = typer.Option(..., "--profile-id", help="Profile ID."),
+    strategy_id: str = typer.Option(..., "--strategy-id", help="Strategy ID."),
+    model_version_id: str = typer.Option(
+        ..., "--model-version-id", help="Model version ID."
+    ),
+    sleeve_id: str = typer.Option(..., "--sleeve-id", help="Sleeve ID."),
+    instrument_id: str = typer.Option(..., "--instrument-id", help="Instrument ID."),
+    inst_id: str = typer.Option(
+        ..., "--inst-id", help="Exchange instrument identifier."
+    ),
     instrument_kind: str = typer.Option(..., "--instrument-kind", help="spot or swap."),
     side: str = typer.Option(..., "--side", help="buy or sell."),
     size: float = typer.Option(..., "--size", help="Order size."),
@@ -63,9 +133,13 @@ def order(
     base_url: str | None = typer.Option(None, help="Control API base URL."),
 ) -> None:
     payload = {
-        "profile": profile,
+        "profile_id": profile_id,
+        "strategy_id": strategy_id,
+        "model_version_id": model_version_id,
+        "sleeve_id": sleeve_id,
+        "instrument_id": instrument_id,
         "inst_id": inst_id,
-        "instrument_kind": instrument_kind,
+        "kind": instrument_kind,
         "side": side,
         "size": size,
         "td_mode": td_mode,
@@ -76,26 +150,6 @@ def order(
     _emit(_platform_client(base_url).create_order(payload, submit=submit))
 
 
-@app.command("cancel")
-def cancel(
-    profile: str = typer.Option(..., "--profile", help="Trading profile."),
-    inst_id: str = typer.Option(..., "--inst-id", help="Instrument identifier."),
-    order_id: str | None = typer.Option(None, "--order-id", help="Platform order ID."),
-    client_order_id: str | None = typer.Option(
-        None, "--client-order-id", help="Client order ID."
-    ),
-    base_url: str | None = typer.Option(None, help="Control API base URL."),
-) -> None:
-    _emit(
-        _platform_client(base_url).cancel_order(
-            profile=profile,
-            inst_id=inst_id,
-            order_id=order_id,
-            client_order_id=client_order_id,
-        )
-    )
-
-
 @app.command("stop-all")
 def stop_all(
     reason: str = typer.Option(..., "--reason", help="Kill switch reason."),
@@ -104,25 +158,15 @@ def stop_all(
     _emit(_platform_client(base_url).stop_all(reason))
 
 
-@app.command("services")
-def services(
-    profile: str | None = typer.Option(None, "--profile", help="Trading profile."),
-    base_url: str | None = typer.Option(None, help="Control API base URL."),
-) -> None:
-    _emit(_platform_client(base_url).list_services(profile=profile))
-
-
-@app.command("profiles")
-def profiles(
+@app.command("migrate")
+def migrate(
     base_url: str | None = typer.Option(None, help="Control API base URL.")
 ) -> None:
-    _emit(_platform_client(base_url).list_profiles())
+    _emit(_platform_client(base_url).migrate())
 
 
-@app.command("instruments")
-def instruments(
-    profile: str | None = typer.Option(None, "--profile", help="Trading profile."),
-    kind: str | None = typer.Option(None, "--kind", help="spot or swap."),
-    base_url: str | None = typer.Option(None, help="Control API base URL."),
+@app.command("cutover")
+def cutover(
+    base_url: str | None = typer.Option(None, help="Control API base URL.")
 ) -> None:
-    _emit(_platform_client(base_url).list_instruments(profile=profile, kind=kind))
+    _emit(_platform_client(base_url).cutover())
