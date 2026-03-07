@@ -2,7 +2,7 @@
 
 ## Goal
 
-The market-data service should be able to start from a whitelist universe, ingest long-lived research datasets, and stay inside a controlled application-side rate budget before any production API keys are enabled.
+The market-data service should start from a whitelist universe, ingest long-lived research datasets into the lake, and stay inside a controlled application-side rate budget before any production API keys are enabled.
 
 This document defines:
 
@@ -10,10 +10,11 @@ This document defines:
 - the application-side rate limits
 - the symbol tiering used for storage control
 - where OKX credentials must be injected
+- how the background worker is enabled
 
 ## Capture Flow
 
-The capture flow is split into four phases.
+The capture flow is split into four phases. The current service implementation writes typed `silver` datasets and short-lived raw data into the lake through `MarketDataRuntime`.
 
 ### Phase 1: Instrument bootstrap
 
@@ -88,7 +89,7 @@ Additional operational rules:
 
 ## Default Ingestion Settings
 
-The service now exposes its ingestion plan at `GET /ingestion-plan`.
+The service exposes its ingestion plan at `GET /ingestion-plan`.
 
 Default environment variables:
 
@@ -110,6 +111,7 @@ Default environment variables:
 - `OKX_REST_BACKFILL_LIMIT_PER_2S=2`
 - `OKX_WS_RAW_TTL_DAYS=3`
 - `OKX_BOOK_DELTA_TTL_DAYS=2`
+- `ENABLE_MARKET_DATA_WORKER=0`
 
 ## Tiering
 
@@ -119,7 +121,7 @@ Use the lake policy together with the capture plan:
 - `Tier B`: long-retain `trades + tob_1s + bars_1s`
 - `Tier C`: long-retain `bars_1s`, with `trades` optional and time-limited
 
-This tiering is how the platform stays under the `300 GB` lake cap while still ingesting the full whitelist universe.
+This tiering is how the platform stays under the local hot-cache budget while still ingesting the full whitelist universe.
 
 ## Where To Put API Credentials
 
@@ -132,17 +134,18 @@ Credential variable names:
 
 Recommended placement:
 
-- Docker Compose: copy `.env.demo.example` to `.env.demo` or `.env.live.example` to `.env.live`, fill in the credentials there, and start Compose with `--env-file`
-- local shell: export the same variables in the shell before starting the services
+- Docker Compose: use `.env.demo` or `.env.live` and start Compose with `--env-file`
+- local shell: export the same variables before starting the services
 
-The market-data service now needs these credentials for private account capture, not only the execution service.
+The market-data service needs these credentials for private account capture, not only the execution service.
 
 ## Startup Checklist
 
 1. Fill demo or live credentials into the matching environment variables.
 2. Set the whitelist and tier lists.
-3. Start `control-api`, `redis`, and `market-data-service`.
-4. Check `GET /healthz`.
-5. Check `GET /ingestion-plan`.
-6. Verify the credential variable names match the selected profile.
-7. Only then enable live private capture and backfills.
+3. Start `minio`, `redpanda`, `control-api`, `redis`, and `market-data-service`.
+4. Set `ENABLE_MARKET_DATA_WORKER=1` only when you are ready for live background ingestion.
+5. Check `GET /healthz` and confirm the `worker` section is enabled and error-free.
+6. Check `GET /ingestion-plan`.
+7. Verify the credential variable names match the selected profile.
+8. Only then enable live private capture and backfills.

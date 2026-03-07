@@ -229,21 +229,108 @@ class ModelVersion(BaseModel):
 
 
 class DatasetRecord(BaseModel):
+    model_config = ConfigDict(use_enum_values=True)
+
     dataset_id: str
     profile_id: str
     name: str
+    logical_name: str | None = None
     layer: str
     path: str
+    physical_uri: str | None = None
+    materialization_id: str | None = None
+    schema_version: str = "v1"
+    manifest_uri: str | None = None
+    checksum: str | None = None
+    row_count: int | None = None
+    file_count: int | None = None
+    byte_count: int | None = None
+    watermark_start: datetime | None = None
+    watermark_end: datetime | None = None
+    retention_class: str = "long"
+    quality_state: str = "ready"
+    pinned: bool = False
+    source_dataset_ids: list[str] = Field(default_factory=list)
+    source_feature_ids: list[str] = Field(default_factory=list)
+    producing_run_id: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=utc_now)
 
 
 class FeatureSet(BaseModel):
+    model_config = ConfigDict(use_enum_values=True)
+
     feature_id: str
     profile_id: str
     name: str
     schema_version: str
     path: str
+    physical_uri: str | None = None
+    materialization_id: str | None = None
+    manifest_uri: str | None = None
+    checksum: str | None = None
+    row_count: int | None = None
+    file_count: int | None = None
+    byte_count: int | None = None
+    watermark_start: datetime | None = None
+    watermark_end: datetime | None = None
+    retention_class: str = "long"
+    quality_state: str = "ready"
+    pinned: bool = False
+    source_dataset_ids: list[str] = Field(default_factory=list)
+    source_feature_ids: list[str] = Field(default_factory=list)
+    producing_run_id: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    created_at: datetime = Field(default_factory=utc_now)
+
+
+class DatasetVersion(BaseModel):
+    model_config = ConfigDict(use_enum_values=True)
+
+    dataset_version_id: str
+    dataset_id: str
+    profile_id: str
+    version: str
+    logical_name: str
+    layer: str
+    path: str
+    physical_uri: str | None = None
+    manifest_uri: str | None = None
+    schema_version: str = "v1"
+    checksum: str | None = None
+    row_count: int | None = None
+    file_count: int | None = None
+    byte_count: int | None = None
+    watermark_start: datetime | None = None
+    watermark_end: datetime | None = None
+    retention_class: str = "long"
+    quality_state: str = "ready"
+    pinned: bool = False
+    lineage_dataset_version_ids: list[str] = Field(default_factory=list)
+    lineage_feature_ids: list[str] = Field(default_factory=list)
+    producing_run_id: str | None = None
+    is_current: bool = True
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    created_at: datetime = Field(default_factory=utc_now)
+
+
+class RunArtifact(BaseModel):
+    model_config = ConfigDict(use_enum_values=True)
+
+    artifact_id: str
+    run_id: str
+    profile_id: str
+    run_type: RunType
+    artifact_type: str
+    name: str
+    logical_name: str | None = None
+    path: str
+    physical_uri: str | None = None
+    manifest_uri: str | None = None
+    checksum: str | None = None
+    size_bytes: int | None = None
+    dataset_version_id: str | None = None
+    feature_id: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=utc_now)
 
@@ -259,8 +346,25 @@ class RunRecord(BaseModel):
     status: RunStatus = RunStatus.PENDING
     run_type: RunType
     artifact_path: str | None = None
+    logical_name: str | None = None
+    materialization_id: str | None = None
+    manifest_uri: str | None = None
+    checksum: str | None = None
+    row_count: int | None = None
+    file_count: int | None = None
+    byte_count: int | None = None
+    watermark_start: datetime | None = None
+    watermark_end: datetime | None = None
+    retention_class: str = "long"
+    quality_state: str = "ready"
+    pinned: bool = False
+    input_dataset_version_ids: list[str] = Field(default_factory=list)
+    input_feature_ids: list[str] = Field(default_factory=list)
+    artifact_ids: list[str] = Field(default_factory=list)
     metrics: dict[str, Any] = Field(default_factory=dict)
     config: dict[str, Any] = Field(default_factory=dict)
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
     created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now)
 

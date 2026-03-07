@@ -7,17 +7,36 @@ from fastapi import Depends, FastAPI, HTTPException, Query, Security
 from sqlalchemy.orm import Session
 
 from okx_trading_platform.application import (
+    AuditEventPipeline,
     CancelOrderCommand,
     ControlPlaneError,
     ControlPlaneService,
     PlatformRepository,
+    ReadModelProjector,
 )
 from okx_trading_platform.application.persistence import Base
 from okx_trading_platform.domain.risk import RiskManager
 from okx_trading_platform.shared.auth import get_api_key
+from okx_trading_platform.shared.data_lake import DataLakeWriter
 from okx_trading_platform.shared.db import engine, get_db
+from okx_trading_platform.shared.settings import get_platform_settings
 
 from . import schemas
+
+settings = get_platform_settings()
+lake_writer = DataLakeWriter(
+    settings.platform_data_root,
+    settings.duckdb_path,
+    hot_cache_root=settings.hot_cache_root,
+    object_store_backend=settings.object_store_backend,
+    object_store_bucket=settings.object_store_bucket,
+    object_store_endpoint=settings.object_store_endpoint,
+    object_store_region=settings.object_store_region,
+    object_store_access_key_id=settings.object_store_access_key_id,
+    object_store_secret_access_key=settings.object_store_secret_access_key,
+    object_store_prefix=settings.object_store_prefix,
+    checkpoint_root=settings.checkpoint_root,
+)
 
 
 def get_risk_manager() -> RiskManager:
@@ -25,7 +44,17 @@ def get_risk_manager() -> RiskManager:
 
 
 def get_control_plane(db: Session = Depends(get_db)) -> ControlPlaneService:
-    return ControlPlaneService(PlatformRepository(db), risk_manager=get_risk_manager())
+    repository = PlatformRepository(db)
+    return ControlPlaneService(
+        repository,
+        risk_manager=get_risk_manager(),
+        audit_pipeline=AuditEventPipeline(
+            lake=lake_writer,
+            projector=ReadModelProjector(repository),
+            stream=f"{settings.redpanda_topic_prefix}.control-plane",
+            source_service="control-api",
+        ),
+    )
 
 
 @asynccontextmanager
@@ -232,6 +261,48 @@ def create_feature(
 ):
     del api_key
     return _call(service.create_feature, feature)
+
+
+@app.get("/dataset-versions", response_model=list[schemas.DatasetVersionSchema])
+def list_dataset_versions(
+    profile_id: str | None = None,
+    dataset_id: str | None = None,
+    service: ControlPlaneService = Depends(get_control_plane),
+    api_key: str | None = Security(get_api_key),
+):
+    del api_key
+    return service.list_dataset_versions(profile_id=profile_id, dataset_id=dataset_id)
+
+
+@app.post("/dataset-versions", response_model=schemas.DatasetVersionSchema)
+def create_dataset_version(
+    version: schemas.DatasetVersionCreate,
+    service: ControlPlaneService = Depends(get_control_plane),
+    api_key: str | None = Security(get_api_key),
+):
+    del api_key
+    return _call(service.create_dataset_version, version)
+
+
+@app.get("/run-artifacts", response_model=list[schemas.RunArtifactSchema])
+def list_run_artifacts(
+    profile_id: str | None = None,
+    run_id: str | None = None,
+    service: ControlPlaneService = Depends(get_control_plane),
+    api_key: str | None = Security(get_api_key),
+):
+    del api_key
+    return service.list_run_artifacts(profile_id=profile_id, run_id=run_id)
+
+
+@app.post("/run-artifacts", response_model=schemas.RunArtifactSchema)
+def create_run_artifact(
+    artifact: schemas.RunArtifactCreate,
+    service: ControlPlaneService = Depends(get_control_plane),
+    api_key: str | None = Security(get_api_key),
+):
+    del api_key
+    return _call(service.create_run_artifact, artifact)
 
 
 @app.get("/backtests", response_model=list[schemas.Backtest])

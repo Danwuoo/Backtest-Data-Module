@@ -332,6 +332,37 @@ class FeatureV2Model(Base, NamedResourceMixin):
     path: Mapped[str] = mapped_column(String, nullable=False)
 
 
+class DatasetVersionV2Model(Base, PayloadMixin):
+    __tablename__ = "platform_dataset_versions"
+    __table_args__ = (
+        UniqueConstraint("dataset_id", "version", name="uq_platform_dataset_version"),
+    )
+
+    dataset_version_id: Mapped[str] = mapped_column(String, primary_key=True)
+    dataset_id: Mapped[str] = mapped_column(String, nullable=False)
+    profile_id: Mapped[str] = mapped_column(String, nullable=False)
+    version: Mapped[str] = mapped_column(String, nullable=False)
+    layer: Mapped[str] = mapped_column(String, nullable=False)
+    is_current: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    created_at: Mapped[dt.datetime] = mapped_column(
+        DateTime, default=dt.datetime.utcnow, nullable=False
+    )
+
+
+class RunArtifactV2Model(Base, PayloadMixin):
+    __tablename__ = "platform_run_artifacts"
+
+    artifact_id: Mapped[str] = mapped_column(String, primary_key=True)
+    run_id: Mapped[str] = mapped_column(String, nullable=False)
+    profile_id: Mapped[str] = mapped_column(String, nullable=False)
+    run_type: Mapped[str] = mapped_column(String, nullable=False)
+    artifact_type: Mapped[str] = mapped_column(String, nullable=False)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    created_at: Mapped[dt.datetime] = mapped_column(
+        DateTime, default=dt.datetime.utcnow, nullable=False
+    )
+
+
 class RunBaseModel(Base, PayloadMixin):
     __abstract__ = True
 

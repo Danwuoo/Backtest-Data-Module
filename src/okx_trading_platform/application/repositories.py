@@ -14,6 +14,7 @@ from okx_trading_platform.domain import (
     BacktestRun,
     BalanceSnapshot,
     DatasetRecord,
+    DatasetVersion,
     ExecutionSnapshot,
     FeatureSet,
     FillRecord,
@@ -35,6 +36,7 @@ from okx_trading_platform.domain import (
     ProfileConfig,
     RiskPolicyConfig,
     RiskSnapshot,
+    RunArtifact,
     ServiceHeartbeat,
     SleeveConfig,
     StrategyConfig,
@@ -51,6 +53,7 @@ from .persistence import (
     BalanceV2Model,
     BotModel,
     DatasetV2Model,
+    DatasetVersionV2Model,
     DeploymentRecordModel,
     ExecutionSnapshotV2Model,
     FeatureV2Model,
@@ -74,6 +77,7 @@ from .persistence import (
     ProfileV2Model,
     RiskPolicyV2Model,
     RiskSnapshotV2Model,
+    RunArtifactV2Model,
     ServiceHeartbeatModel,
     SleeveV2Model,
     StrategyV2Model,
@@ -608,6 +612,80 @@ class PlatformRepository:
         model.payload_json = feature.model_dump(mode="json")
         self._save(model)
         return FeatureSet.model_validate(model.payload_json)
+
+    def list_dataset_versions(
+        self,
+        profile_id: str | None = None,
+        dataset_id: str | None = None,
+    ) -> list[DatasetVersion]:
+        query = self.db.query(DatasetVersionV2Model)
+        if profile_id:
+            query = query.filter(DatasetVersionV2Model.profile_id == profile_id)
+        if dataset_id:
+            query = query.filter(DatasetVersionV2Model.dataset_id == dataset_id)
+        query = query.order_by(DatasetVersionV2Model.created_at.desc())
+        return [
+            DatasetVersion.model_validate(model.payload_json) for model in query.all()
+        ]
+
+    def create_dataset_version(self, version: DatasetVersion) -> DatasetVersion:
+        model = self.db.get(
+            DatasetVersionV2Model, version.dataset_version_id
+        ) or DatasetVersionV2Model(
+            dataset_version_id=version.dataset_version_id,
+            dataset_id=version.dataset_id,
+            profile_id=version.profile_id,
+            version=version.version,
+            layer=version.layer,
+            is_current=version.is_current,
+        )
+        if version.is_current:
+            (
+                self.db.query(DatasetVersionV2Model)
+                .filter(DatasetVersionV2Model.dataset_id == version.dataset_id)
+                .update({"is_current": False})
+            )
+        model.dataset_id = version.dataset_id
+        model.profile_id = version.profile_id
+        model.version = version.version
+        model.layer = version.layer
+        model.is_current = version.is_current
+        model.payload_json = version.model_dump(mode="json")
+        self._save(model)
+        return DatasetVersion.model_validate(model.payload_json)
+
+    def list_run_artifacts(
+        self,
+        profile_id: str | None = None,
+        run_id: str | None = None,
+    ) -> list[RunArtifact]:
+        query = self.db.query(RunArtifactV2Model)
+        if profile_id:
+            query = query.filter(RunArtifactV2Model.profile_id == profile_id)
+        if run_id:
+            query = query.filter(RunArtifactV2Model.run_id == run_id)
+        query = query.order_by(RunArtifactV2Model.created_at.asc())
+        return [RunArtifact.model_validate(model.payload_json) for model in query.all()]
+
+    def create_run_artifact(self, artifact: RunArtifact) -> RunArtifact:
+        model = self.db.get(
+            RunArtifactV2Model, artifact.artifact_id
+        ) or RunArtifactV2Model(
+            artifact_id=artifact.artifact_id,
+            run_id=artifact.run_id,
+            profile_id=artifact.profile_id,
+            run_type=artifact.run_type,
+            artifact_type=artifact.artifact_type,
+            name=artifact.name,
+        )
+        model.run_id = artifact.run_id
+        model.profile_id = artifact.profile_id
+        model.run_type = artifact.run_type
+        model.artifact_type = artifact.artifact_type
+        model.name = artifact.name
+        model.payload_json = artifact.model_dump(mode="json")
+        self._save(model)
+        return RunArtifact.model_validate(model.payload_json)
 
     def list_backtests(self, profile_id: str | None = None) -> list[BacktestRun]:
         query = self.db.query(BacktestRunV2Model)

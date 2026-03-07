@@ -13,7 +13,9 @@ def test_market_data_service_health():
     client = TestClient(market_data_app)
     response = client.get("/healthz")
     assert response.status_code == 200
-    assert response.json()["service"] == "market-data-service"
+    payload = response.json()
+    assert payload["service"] == "market-data-service"
+    assert payload["worker"]["enabled"] is False
 
 
 def test_market_data_service_ingestion_plan():
@@ -65,4 +67,6 @@ def test_replay_service_health():
     client = TestClient(replay_app)
     response = client.get("/healthz")
     assert response.status_code == 200
-    assert response.json()["service"] == "replay-service"
+    payload = response.json()
+    assert payload["service"] == "replay-service"
+    assert payload["worker"]["enabled"] is False

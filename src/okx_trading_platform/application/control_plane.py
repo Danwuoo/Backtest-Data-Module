@@ -15,6 +15,7 @@ from okx_trading_platform.domain import (
     BacktestRun,
     BalanceSnapshot,
     DatasetRecord,
+    DatasetVersion,
     ExecutionSnapshot,
     FeatureSet,
     FillRecord,
@@ -34,6 +35,7 @@ from okx_trading_platform.domain import (
     ProfileConfig,
     RiskPolicyConfig,
     RiskSnapshot,
+    RunArtifact,
     ServiceHeartbeat,
     SleeveConfig,
     StrategyConfig,
@@ -42,6 +44,7 @@ from okx_trading_platform.domain import (
 from okx_trading_platform.domain.risk import RiskManager
 from okx_trading_platform.shared.notify import build_default_notifier
 
+from .projector import AuditEventPipeline
 from .repositories import PlatformRepository
 
 
@@ -64,6 +67,7 @@ class ControlPlaneService:
         *,
         risk_manager: RiskManager,
         execution_gateway: OkxExchangeGateway | None = None,
+        audit_pipeline: AuditEventPipeline | None = None,
     ) -> None:
         self.repository = repository
         self.risk_manager = risk_manager
@@ -73,6 +77,7 @@ class ControlPlaneService:
             dedupe_cache=ClientOrderIdCache(),
         )
         self.notifier = build_default_notifier()
+        self.audit_pipeline = audit_pipeline
 
     def bootstrap_profiles(self) -> list[ProfileConfig]:
         self.repository.migrate_legacy_data()
@@ -88,7 +93,12 @@ class ControlPlaneService:
     def create_profile(self, profile: ProfileConfig) -> ProfileConfig:
         if self.repository.get_profile(profile.profile_id) is not None:
             raise ControlPlaneError(409, "Profile already exists")
-        return self.repository.create_profile(profile)
+        return self._projected_upsert(
+            "profile.upserted",
+            profile,
+            profile_id=profile.profile_id,
+            fallback=lambda: self.repository.create_profile(profile),
+        )
 
     def list_risk_policies(
         self, *, profile_id: str | None = None
@@ -97,7 +107,12 @@ class ControlPlaneService:
 
     def create_risk_policy(self, policy: RiskPolicyConfig) -> RiskPolicyConfig:
         self._require_profile(policy.profile_id)
-        return self.repository.create_risk_policy(policy)
+        return self._projected_upsert(
+            "risk_policy.upserted",
+            policy,
+            profile_id=policy.profile_id,
+            fallback=lambda: self.repository.create_risk_policy(policy),
+        )
 
     def list_allocators(
         self, *, profile_id: str | None = None
@@ -106,14 +121,24 @@ class ControlPlaneService:
 
     def create_allocator(self, allocator: AllocatorConfig) -> AllocatorConfig:
         self._require_profile(allocator.profile_id)
-        return self.repository.create_allocator(allocator)
+        return self._projected_upsert(
+            "allocator.upserted",
+            allocator,
+            profile_id=allocator.profile_id,
+            fallback=lambda: self.repository.create_allocator(allocator),
+        )
 
     def list_sleeves(self, *, profile_id: str | None = None) -> list[SleeveConfig]:
         return self.repository.list_sleeves(profile_id=profile_id)
 
     def create_sleeve(self, sleeve: SleeveConfig) -> SleeveConfig:
         self._require_profile(sleeve.profile_id)
-        return self.repository.create_sleeve(sleeve)
+        return self._projected_upsert(
+            "sleeve.upserted",
+            sleeve,
+            profile_id=sleeve.profile_id,
+            fallback=lambda: self.repository.create_sleeve(sleeve),
+        )
 
     def list_instruments(
         self,
@@ -125,14 +150,26 @@ class ControlPlaneService:
 
     def create_instrument(self, instrument: InstrumentConfig) -> InstrumentConfig:
         self._require_profile(instrument.profile_id)
-        return self.repository.create_instrument(instrument)
+        return self._projected_upsert(
+            "instrument.upserted",
+            instrument,
+            profile_id=instrument.profile_id,
+            inst_id=instrument.inst_id,
+            fallback=lambda: self.repository.create_instrument(instrument),
+        )
 
     def list_strategies(self, *, profile_id: str | None = None) -> list[StrategyConfig]:
         return self.repository.list_strategies(profile_id=profile_id)
 
     def create_strategy(self, strategy: StrategyConfig) -> StrategyConfig:
         self._require_profile(strategy.profile_id)
-        return self.repository.create_strategy(strategy)
+        return self._projected_upsert(
+            "strategy.upserted",
+            strategy,
+            profile_id=strategy.profile_id,
+            strategy_id=strategy.strategy_id,
+            fallback=lambda: self.repository.create_strategy(strategy),
+        )
 
     def list_model_versions(
         self, *, profile_id: str | None = None
@@ -141,42 +178,120 @@ class ControlPlaneService:
 
     def create_model_version(self, version: ModelVersion) -> ModelVersion:
         self._require_profile(version.profile_id)
-        return self.repository.create_model_version(version)
+        return self._projected_upsert(
+            "model_version.upserted",
+            version,
+            profile_id=version.profile_id,
+            strategy_id=version.strategy_id,
+            fallback=lambda: self.repository.create_model_version(version),
+        )
 
     def list_datasets(self, *, profile_id: str | None = None) -> list[DatasetRecord]:
         return self.repository.list_datasets(profile_id=profile_id)
 
     def create_dataset(self, dataset: DatasetRecord) -> DatasetRecord:
         self._require_profile(dataset.profile_id)
-        return self.repository.create_dataset(dataset)
+        return self._projected_upsert(
+            "dataset.upserted",
+            dataset,
+            profile_id=dataset.profile_id,
+            run_id=dataset.producing_run_id,
+            fallback=lambda: self.repository.create_dataset(dataset),
+        )
 
     def list_features(self, *, profile_id: str | None = None) -> list[FeatureSet]:
         return self.repository.list_features(profile_id=profile_id)
 
     def create_feature(self, feature: FeatureSet) -> FeatureSet:
         self._require_profile(feature.profile_id)
-        return self.repository.create_feature(feature)
+        return self._projected_upsert(
+            "feature.upserted",
+            feature,
+            profile_id=feature.profile_id,
+            run_id=feature.producing_run_id,
+            fallback=lambda: self.repository.create_feature(feature),
+        )
+
+    def list_dataset_versions(
+        self,
+        *,
+        profile_id: str | None = None,
+        dataset_id: str | None = None,
+    ) -> list[DatasetVersion]:
+        return self.repository.list_dataset_versions(
+            profile_id=profile_id,
+            dataset_id=dataset_id,
+        )
+
+    def create_dataset_version(self, version: DatasetVersion) -> DatasetVersion:
+        self._require_profile(version.profile_id)
+        return self._projected_upsert(
+            "dataset_version.upserted",
+            version,
+            profile_id=version.profile_id,
+            run_id=version.producing_run_id,
+            fallback=lambda: self.repository.create_dataset_version(version),
+        )
+
+    def list_run_artifacts(
+        self,
+        *,
+        profile_id: str | None = None,
+        run_id: str | None = None,
+    ) -> list[RunArtifact]:
+        return self.repository.list_run_artifacts(profile_id=profile_id, run_id=run_id)
+
+    def create_run_artifact(self, artifact: RunArtifact) -> RunArtifact:
+        self._require_profile(artifact.profile_id)
+        return self._projected_upsert(
+            "run_artifact.upserted",
+            artifact,
+            profile_id=artifact.profile_id,
+            run_id=artifact.run_id,
+            fallback=lambda: self.repository.create_run_artifact(artifact),
+        )
 
     def list_backtests(self, *, profile_id: str | None = None) -> list[BacktestRun]:
         return self.repository.list_backtests(profile_id=profile_id)
 
     def create_backtest(self, run: BacktestRun) -> BacktestRun:
         self._require_profile(run.profile_id)
-        return self.repository.create_backtest(run)
+        return self._projected_upsert(
+            "backtest_run.upserted",
+            run,
+            profile_id=run.profile_id,
+            strategy_id=run.strategy_id,
+            run_id=run.run_id,
+            fallback=lambda: self.repository.create_backtest(run),
+        )
 
     def list_paper_runs(self, *, profile_id: str | None = None) -> list[PaperRun]:
         return self.repository.list_paper_runs(profile_id=profile_id)
 
     def create_paper_run(self, run: PaperRun) -> PaperRun:
         self._require_profile(run.profile_id)
-        return self.repository.create_paper_run(run)
+        return self._projected_upsert(
+            "paper_run.upserted",
+            run,
+            profile_id=run.profile_id,
+            strategy_id=run.strategy_id,
+            run_id=run.run_id,
+            fallback=lambda: self.repository.create_paper_run(run),
+        )
 
     def list_live_runs(self, *, profile_id: str | None = None) -> list[LiveRun]:
         return self.repository.list_live_runs(profile_id=profile_id)
 
     def create_live_run(self, run: LiveRun) -> LiveRun:
         self._require_profile(run.profile_id)
-        return self.repository.create_live_run(run)
+        return self._projected_upsert(
+            "live_run.upserted",
+            run,
+            profile_id=run.profile_id,
+            strategy_id=run.strategy_id,
+            run_id=run.run_id,
+            fallback=lambda: self.repository.create_live_run(run),
+        )
 
     def list_orders(
         self, *, profile_id: str | None = None, status: str | None = None
@@ -218,7 +333,14 @@ class ControlPlaneService:
             observed_latency_ms=plan.metadata.get("latency_ms"),
             market_data_fresh=bool(plan.metadata.get("market_data_fresh", True)),
         )
-        self.repository.create_order_plan(plan)
+        self._projected_upsert(
+            "order_plan.upserted",
+            plan,
+            profile_id=plan.profile_id,
+            strategy_id=plan.strategy_id,
+            inst_id=plan.inst_id,
+            fallback=lambda: self.repository.create_order_plan(plan),
+        )
         state = OrderState(
             order_plan_id=plan.order_plan_id,
             client_order_id=plan.metadata.get("client_order_id", plan.order_plan_id),
@@ -243,14 +365,20 @@ class ControlPlaneService:
             rejection_reason=decision.reason,
             raw_payload={"risk": decision.model_dump(mode="json")},
         )
-        self.repository.create_risk_snapshot(
-            self.risk_manager.build_snapshot(
-                profile_id=plan.profile_id,
-                order_id=state.order_id,
-                strategy_id=plan.strategy_id,
-                sleeve_id=plan.sleeve_id,
-                decision=decision,
-            )
+        risk_snapshot = self.risk_manager.build_snapshot(
+            profile_id=plan.profile_id,
+            order_id=state.order_id,
+            strategy_id=plan.strategy_id,
+            sleeve_id=plan.sleeve_id,
+            decision=decision,
+        )
+        self._projected_upsert(
+            "risk_snapshot.upserted",
+            risk_snapshot,
+            profile_id=plan.profile_id,
+            strategy_id=plan.strategy_id,
+            inst_id=plan.inst_id,
+            fallback=lambda: self.repository.create_risk_snapshot(risk_snapshot),
         )
         if submit and decision.approved:
             try:
@@ -261,21 +389,34 @@ class ControlPlaneService:
             except ValueError as exc:
                 state.status = OrderLifecycleState.FAILED
                 state.rejection_reason = str(exc)
-        self.repository.create_order(state)
-        self.repository.create_execution_snapshot(
-            ExecutionSnapshot(
-                profile_id=plan.profile_id,
-                order_id=state.order_id,
-                status=state.status,
-                signal_ts=plan.created_at,
-                risk_ts=self.repository.list_risk_snapshots(profile_id=plan.profile_id)[
-                    0
-                ].created_at,
-                send_ts=state.updated_at if submit and decision.approved else None,
-                metadata={"source": plan.source},
-            )
+        created_state = self._projected_upsert(
+            "order_state.upserted",
+            state,
+            profile_id=plan.profile_id,
+            strategy_id=plan.strategy_id,
+            inst_id=plan.inst_id,
+            correlation_id=plan.order_plan_id,
+            fallback=lambda: self.repository.create_order(state),
         )
-        return state
+        execution_snapshot = ExecutionSnapshot(
+            profile_id=plan.profile_id,
+            order_id=created_state.order_id,
+            status=created_state.status,
+            signal_ts=plan.created_at,
+            risk_ts=risk_snapshot.created_at,
+            send_ts=created_state.updated_at if submit and decision.approved else None,
+            metadata={"source": plan.source},
+        )
+        self._projected_upsert(
+            "execution_snapshot.upserted",
+            execution_snapshot,
+            profile_id=plan.profile_id,
+            strategy_id=plan.strategy_id,
+            inst_id=plan.inst_id,
+            correlation_id=created_state.order_id,
+            fallback=lambda: self.repository.create_execution_snapshot(execution_snapshot),
+        )
+        return created_state
 
     def cancel_order(self, command: CancelOrderCommand) -> OrderState:
         model = self.repository.cancel_order(command.order_id)
@@ -290,65 +431,113 @@ class ControlPlaneService:
         order = self.repository.get_order(fill.order_id)
         if order is None:
             raise ControlPlaneError(404, "Order not found")
-        created = self.repository.create_fill(fill)
+        created = self._projected_upsert(
+            "fill.upserted",
+            fill,
+            profile_id=fill.profile_id,
+            strategy_id=order.strategy_id,
+            inst_id=fill.inst_id,
+            correlation_id=fill.order_id,
+            fallback=lambda: self.repository.create_fill(fill),
+        )
         direction = -1 if order.side == "buy" else 1
         notional = fill.fill_price * fill.fill_size * direction
-        self.repository.create_ledger_entry(
-            LedgerEntry(
-                profile_id=fill.profile_id,
-                order_id=fill.order_id,
-                fill_id=fill.fill_id,
-                amount=notional,
-                entry_type="trade_cashflow",
-                description="Trade cashflow",
-            )
+        trade_ledger = LedgerEntry(
+            profile_id=fill.profile_id,
+            order_id=fill.order_id,
+            fill_id=fill.fill_id,
+            amount=notional,
+            entry_type="trade_cashflow",
+            description="Trade cashflow",
         )
-        self.repository.create_ledger_entry(
-            LedgerEntry(
-                profile_id=fill.profile_id,
-                order_id=fill.order_id,
-                fill_id=fill.fill_id,
-                amount=-abs(fill.fee),
-                entry_type="fee",
-                description="Exchange fee",
-            )
+        self._projected_upsert(
+            "ledger_entry.upserted",
+            trade_ledger,
+            profile_id=fill.profile_id,
+            inst_id=fill.inst_id,
+            correlation_id=fill.order_id,
+            fallback=lambda: self.repository.create_ledger_entry(trade_ledger),
+        )
+        fee_ledger = LedgerEntry(
+            profile_id=fill.profile_id,
+            order_id=fill.order_id,
+            fill_id=fill.fill_id,
+            amount=-abs(fill.fee),
+            entry_type="fee",
+            description="Exchange fee",
+        )
+        self._projected_upsert(
+            "ledger_entry.upserted",
+            fee_ledger,
+            profile_id=fill.profile_id,
+            inst_id=fill.inst_id,
+            correlation_id=fill.order_id,
+            fallback=lambda: self.repository.create_ledger_entry(fee_ledger),
         )
         if fill.funding_cost:
-            self.repository.create_funding_entry(
-                FundingEntry(
-                    profile_id=fill.profile_id,
-                    instrument_id=fill.instrument_id,
-                    inst_id=fill.inst_id,
-                    amount=fill.funding_cost,
-                    metadata={"fill_id": fill.fill_id},
-                )
+            funding_entry = FundingEntry(
+                profile_id=fill.profile_id,
+                instrument_id=fill.instrument_id,
+                inst_id=fill.inst_id,
+                amount=fill.funding_cost,
+                metadata={"fill_id": fill.fill_id},
             )
-        self.repository.create_pnl_snapshot(
-            PnLSnapshot(
+            self._projected_upsert(
+                "funding_entry.upserted",
+                funding_entry,
                 profile_id=fill.profile_id,
                 strategy_id=order.strategy_id,
-                sleeve_id=order.sleeve_id,
-                realized_pnl=-abs(fill.fee),
-                net_pnl=-abs(fill.fee),
-                metadata={"fill_id": fill.fill_id},
+                inst_id=fill.inst_id,
+                correlation_id=fill.order_id,
+                fallback=lambda: self.repository.create_funding_entry(funding_entry),
             )
+        pnl_snapshot = PnLSnapshot(
+            profile_id=fill.profile_id,
+            strategy_id=order.strategy_id,
+            sleeve_id=order.sleeve_id,
+            realized_pnl=-abs(fill.fee),
+            net_pnl=-abs(fill.fee),
+            metadata={"fill_id": fill.fill_id},
         )
-        self.repository.create_risk_snapshot(
-            self.risk_manager.execution_snapshot(
-                profile_id=fill.profile_id,
-                order_id=fill.order_id,
-                latency_ms=fill.raw_payload.get("latency_ms"),
-            )
+        self._projected_upsert(
+            "pnl_snapshot.upserted",
+            pnl_snapshot,
+            profile_id=fill.profile_id,
+            strategy_id=order.strategy_id,
+            inst_id=fill.inst_id,
+            correlation_id=fill.order_id,
+            fallback=lambda: self.repository.create_pnl_snapshot(pnl_snapshot),
         )
-        self.repository.create_execution_snapshot(
-            ExecutionSnapshot(
-                profile_id=fill.profile_id,
-                order_id=fill.order_id,
-                status="filled",
-                fill_ts=fill.created_at,
-                slippage_bps=self._slippage_bps(order.price, fill.fill_price),
-                metadata={"fill_id": fill.fill_id},
-            )
+        execution_risk = self.risk_manager.execution_snapshot(
+            profile_id=fill.profile_id,
+            order_id=fill.order_id,
+            latency_ms=fill.raw_payload.get("latency_ms"),
+        )
+        self._projected_upsert(
+            "risk_snapshot.upserted",
+            execution_risk,
+            profile_id=fill.profile_id,
+            strategy_id=order.strategy_id,
+            inst_id=fill.inst_id,
+            correlation_id=fill.order_id,
+            fallback=lambda: self.repository.create_risk_snapshot(execution_risk),
+        )
+        fill_execution = ExecutionSnapshot(
+            profile_id=fill.profile_id,
+            order_id=fill.order_id,
+            status="filled",
+            fill_ts=fill.created_at,
+            slippage_bps=self._slippage_bps(order.price, fill.fill_price),
+            metadata={"fill_id": fill.fill_id},
+        )
+        self._projected_upsert(
+            "execution_snapshot.upserted",
+            fill_execution,
+            profile_id=fill.profile_id,
+            strategy_id=order.strategy_id,
+            inst_id=fill.inst_id,
+            correlation_id=fill.order_id,
+            fallback=lambda: self.repository.create_execution_snapshot(fill_execution),
         )
         return created
 
@@ -378,28 +567,49 @@ class ControlPlaneService:
 
     def upsert_position(self, position: PositionSnapshot) -> PositionSnapshot:
         self._require_profile(position.profile_id)
-        return self.repository.upsert_position(position)
+        return self._projected_upsert(
+            "position.upserted",
+            position,
+            profile_id=position.profile_id,
+            inst_id=position.inst_id,
+            fallback=lambda: self.repository.upsert_position(position),
+        )
 
     def list_balances(self, *, profile_id: str | None = None) -> list[BalanceSnapshot]:
         return self.repository.list_balances(profile_id=profile_id)
 
     def upsert_balance(self, balance: BalanceSnapshot) -> BalanceSnapshot:
         self._require_profile(balance.profile_id)
-        return self.repository.upsert_balance(balance)
+        return self._projected_upsert(
+            "balance.upserted",
+            balance,
+            profile_id=balance.profile_id,
+            fallback=lambda: self.repository.upsert_balance(balance),
+        )
 
     def list_services(self, *, profile_id: str | None = None) -> list[ServiceHeartbeat]:
         return self.repository.list_services(profile_id=profile_id)
 
     def upsert_service(self, heartbeat: ServiceHeartbeat) -> ServiceHeartbeat:
         self._require_profile(heartbeat.profile_id)
-        return self.repository.upsert_heartbeat(heartbeat)
+        return self._projected_upsert(
+            "service_heartbeat.upserted",
+            heartbeat,
+            profile_id=heartbeat.profile_id,
+            fallback=lambda: self.repository.upsert_heartbeat(heartbeat),
+        )
 
     def list_incidents(self, *, profile_id: str | None = None) -> list[IncidentRecord]:
         return self.repository.list_incidents(profile_id=profile_id)
 
     def create_incident(self, incident: IncidentRecord) -> IncidentRecord:
         self._require_profile(incident.profile_id)
-        created = self.repository.create_incident(incident)
+        created = self._projected_upsert(
+            "incident.upserted",
+            incident,
+            profile_id=incident.profile_id,
+            fallback=lambda: self.repository.create_incident(incident),
+        )
         for policy in self.repository.list_alert_policies(
             profile_id=incident.profile_id
         ):
@@ -426,13 +636,23 @@ class ControlPlaneService:
 
     def create_alert_policy(self, policy: AlertPolicy) -> AlertPolicy:
         self._require_profile(policy.profile_id)
-        return self.repository.create_alert_policy(policy)
+        return self._projected_upsert(
+            "alert_policy.upserted",
+            policy,
+            profile_id=policy.profile_id,
+            fallback=lambda: self.repository.create_alert_policy(policy),
+        )
 
     def list_alerts(self, *, profile_id: str | None = None) -> list[AlertRecord]:
         return self.repository.list_alerts(profile_id=profile_id)
 
     def create_alert(self, alert: AlertRecord) -> AlertRecord:
-        created = self.repository.create_alert(alert)
+        created = self._projected_upsert(
+            "alert.upserted",
+            alert,
+            profile_id=alert.profile_id,
+            fallback=lambda: self.repository.create_alert(alert),
+        )
         self.notifier.notify(title=created.title, message=created.message)
         return created
 
@@ -465,3 +685,29 @@ class ControlPlaneService:
         if order_price in (None, 0):
             return None
         return ((fill_price - order_price) / order_price) * 10_000
+
+    def _projected_upsert(
+        self,
+        event_type: str,
+        model,
+        *,
+        profile_id: str | None,
+        fallback,
+        strategy_id: str | None = None,
+        run_id: str | None = None,
+        inst_id: str | None = None,
+        correlation_id: str | None = None,
+        causation_id: str | None = None,
+    ):
+        if self.audit_pipeline is None:
+            return fallback()
+        return self.audit_pipeline.append_and_project(
+            event_type=event_type,
+            payload=model.model_dump(mode="json"),
+            profile_id=profile_id,
+            strategy_id=strategy_id,
+            run_id=run_id,
+            inst_id=inst_id,
+            correlation_id=correlation_id,
+            causation_id=causation_id,
+        )

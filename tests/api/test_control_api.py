@@ -1,5 +1,6 @@
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
+from pathlib import Path
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -42,9 +43,12 @@ client = TestClient(app)
 
 @pytest.fixture(scope="function", autouse=True)
 def setup_teardown():
+    engine.dispose()
+    Path("platform_test.db").unlink(missing_ok=True)
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
     yield
+    engine.dispose()
     Base.metadata.drop_all(bind=engine)
 
 
@@ -172,6 +176,83 @@ def test_v2_order_flow_creates_fill_ledger_pnl_and_alerts():
     alerts = client.get("/alerts", params={"profile_id": "demo-main"})
     assert alerts.status_code == 200
     assert alerts.json()[0]["title"] == "latency incident"
+
+
+def test_dataset_versions_and_run_artifacts_endpoints():
+    profiles = client.get("/profiles")
+    assert profiles.status_code == 200
+
+    dataset = client.post(
+        "/datasets",
+        json={
+            "dataset_id": "silver.trades",
+            "profile_id": "demo-main",
+            "name": "silver trades",
+            "logical_name": "trades",
+            "layer": "silver",
+            "path": "/tmp/lake/silver/trades",
+            "physical_uri": "/tmp/lake/silver/trades",
+            "metadata": {},
+        },
+    )
+    assert dataset.status_code == 200
+
+    version = client.post(
+        "/dataset-versions",
+        json={
+            "dataset_version_id": "silver.trades:v1",
+            "dataset_id": "silver.trades",
+            "profile_id": "demo-main",
+            "version": "v1",
+            "logical_name": "trades",
+            "layer": "silver",
+            "path": "/tmp/lake/silver/trades/v1",
+            "physical_uri": "/tmp/lake/silver/trades/v1",
+            "metadata": {},
+        },
+    )
+    assert version.status_code == 200
+
+    run = client.post(
+        "/backtests",
+        json={
+            "run_id": "bt-1",
+            "profile_id": "demo-main",
+            "strategy_id": "reference-breakout",
+            "status": "pending",
+            "run_type": "backtest",
+            "metrics": {},
+            "config": {},
+        },
+    )
+    assert run.status_code == 200
+
+    artifact = client.post(
+        "/run-artifacts",
+        json={
+            "artifact_id": "bt-1:summary",
+            "run_id": "bt-1",
+            "profile_id": "demo-main",
+            "run_type": "backtest",
+            "artifact_type": "backtest_summary",
+            "name": "backtest_summary",
+            "path": "/tmp/lake/gold/backtest_summary",
+            "physical_uri": "/tmp/lake/gold/backtest_summary",
+            "dataset_version_id": "silver.trades:v1",
+            "metadata": {},
+        },
+    )
+    assert artifact.status_code == 200
+
+    versions = client.get(
+        "/dataset-versions",
+        params={"profile_id": "demo-main", "dataset_id": "silver.trades"},
+    )
+    artifacts = client.get("/run-artifacts", params={"run_id": "bt-1"})
+    assert versions.status_code == 200
+    assert artifacts.status_code == 200
+    assert versions.json()[0]["dataset_version_id"] == "silver.trades:v1"
+    assert artifacts.json()[0]["artifact_id"] == "bt-1:summary"
 
 
 def test_legacy_bot_and_orders_migrate_into_v2():

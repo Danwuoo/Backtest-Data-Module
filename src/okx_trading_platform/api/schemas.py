@@ -9,6 +9,7 @@ from okx_trading_platform.domain import (
     BacktestRun,
     BalanceSnapshot,
     DatasetRecord,
+    DatasetVersion,
     FeatureSet,
     FillRecord,
     IncidentRecord,
@@ -22,6 +23,7 @@ from okx_trading_platform.domain import (
     PositionSnapshot,
     ProfileConfig,
     RiskPolicyConfig,
+    RunArtifact,
     ServiceHeartbeat,
     SleeveConfig,
     StrategyConfig,
@@ -97,6 +99,22 @@ class FeatureCreate(FeatureSet):
 
 
 class Feature(FeatureSet):
+    model_config = ConfigDict(use_enum_values=True)
+
+
+class DatasetVersionCreate(DatasetVersion):
+    pass
+
+
+class DatasetVersionSchema(DatasetVersion):
+    model_config = ConfigDict(use_enum_values=True)
+
+
+class RunArtifactCreate(RunArtifact):
+    pass
+
+
+class RunArtifactSchema(RunArtifact):
     model_config = ConfigDict(use_enum_values=True)
 
 

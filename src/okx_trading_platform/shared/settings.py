@@ -43,6 +43,22 @@ class PlatformSettings:
     trading_environment: TradingEnvironment
     platform_data_root: str
     duckdb_path: str
+    hot_cache_root: str
+    object_store_backend: str
+    object_store_bucket: str
+    object_store_endpoint: str | None
+    object_store_region: str | None
+    object_store_access_key_id: str | None
+    object_store_secret_access_key: str | None
+    object_store_prefix: str
+    checkpoint_root: str
+    event_bus_backend: str
+    redpanda_brokers: tuple[str, ...]
+    redpanda_topic_prefix: str
+    compaction_interval_seconds: int
+    artifact_retention_days: int
+    enable_market_data_worker: bool
+    enable_replay_worker: bool
     bronze_ttl_days: int
     redis_url: str
     baseline_strategy_id: str
@@ -83,6 +99,24 @@ def get_platform_settings() -> PlatformSettings:
         trading_environment=environment,
         platform_data_root=os.getenv("PLATFORM_DATA_ROOT", "./data/lake"),
         duckdb_path=os.getenv("DUCKDB_PATH", "./data/platform.duckdb"),
+        hot_cache_root=os.getenv("HOT_CACHE_ROOT", "./data/hot-cache"),
+        object_store_backend=os.getenv("OBJECT_STORE_BACKEND", "filesystem"),
+        object_store_bucket=os.getenv("OBJECT_STORE_BUCKET", "platform-lake"),
+        object_store_endpoint=os.getenv("OBJECT_STORE_ENDPOINT"),
+        object_store_region=os.getenv("OBJECT_STORE_REGION"),
+        object_store_access_key_id=os.getenv("OBJECT_STORE_ACCESS_KEY_ID"),
+        object_store_secret_access_key=os.getenv("OBJECT_STORE_SECRET_ACCESS_KEY"),
+        object_store_prefix=os.getenv("OBJECT_STORE_PREFIX", ""),
+        checkpoint_root=os.getenv("CHECKPOINT_ROOT", "./data/checkpoints"),
+        event_bus_backend=os.getenv("EVENT_BUS_BACKEND", "redpanda"),
+        redpanda_brokers=parse_csv(os.getenv("REDPANDA_BROKERS", "127.0.0.1:19092")),
+        redpanda_topic_prefix=os.getenv("REDPANDA_TOPIC_PREFIX", "okx-platform"),
+        compaction_interval_seconds=int(
+            os.getenv("COMPACTION_INTERVAL_SECONDS", "3600")
+        ),
+        artifact_retention_days=int(os.getenv("ARTIFACT_RETENTION_DAYS", "90")),
+        enable_market_data_worker=os.getenv("ENABLE_MARKET_DATA_WORKER", "0") == "1",
+        enable_replay_worker=os.getenv("ENABLE_REPLAY_WORKER", "0") == "1",
         bronze_ttl_days=int(os.getenv("OKX_BRONZE_TTL_DAYS", "7")),
         redis_url=os.getenv("REDIS_URL", "redis://127.0.0.1:6379/0"),
         baseline_strategy_id=os.getenv("BASELINE_STRATEGY_ID", "reference-breakout"),

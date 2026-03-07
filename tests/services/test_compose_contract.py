@@ -9,6 +9,9 @@ def test_compose_defines_required_services():
     required = {
         "postgres",
         "redis",
+        "redpanda",
+        "minio",
+        "minio-setup",
         "control-api",
         "market-data-service",
         "execution-service",

@@ -1,7 +1,9 @@
 alembic
+boto3
 duckdb
 fastapi
 httpx
+kafka-python
 prometheus-client
 psycopg[binary]
 pyarrow

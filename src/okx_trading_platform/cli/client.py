@@ -44,6 +44,40 @@ class ControlApiClient:
         params = {"profile_id": profile_id} if profile_id else None
         return self._get("/models", params=params).json()
 
+    def list_datasets(self, *, profile_id: str | None = None) -> list[dict[str, Any]]:
+        params = {"profile_id": profile_id} if profile_id else None
+        return self._get("/datasets", params=params).json()
+
+    def list_features(self, *, profile_id: str | None = None) -> list[dict[str, Any]]:
+        params = {"profile_id": profile_id} if profile_id else None
+        return self._get("/features", params=params).json()
+
+    def list_dataset_versions(
+        self,
+        *,
+        profile_id: str | None = None,
+        dataset_id: str | None = None,
+    ) -> list[dict[str, Any]]:
+        params: dict[str, Any] = {}
+        if profile_id:
+            params["profile_id"] = profile_id
+        if dataset_id:
+            params["dataset_id"] = dataset_id
+        return self._get("/dataset-versions", params=params or None).json()
+
+    def list_run_artifacts(
+        self,
+        *,
+        profile_id: str | None = None,
+        run_id: str | None = None,
+    ) -> list[dict[str, Any]]:
+        params: dict[str, Any] = {}
+        if profile_id:
+            params["profile_id"] = profile_id
+        if run_id:
+            params["run_id"] = run_id
+        return self._get("/run-artifacts", params=params or None).json()
+
     def list_sleeves(self, *, profile_id: str | None = None) -> list[dict[str, Any]]:
         params = {"profile_id": profile_id} if profile_id else None
         return self._get("/sleeves", params=params).json()

@@ -17,7 +17,11 @@ from okx_trading_platform.domain import (
     utc_now,
 )
 from okx_trading_platform.domain.risk import RiskManager
-from okx_trading_platform.shared.data_lake import DataLakeRecord, DataLakeWriter
+from okx_trading_platform.shared.data_lake import (
+    DataLakeWriter,
+    DatasetBatch,
+    EventEnvelope,
+)
 
 
 @dataclass
@@ -95,16 +99,76 @@ class MarketDataRuntime(ServiceRuntime):
     def _persist(self, layer: str, inst_id: str, stream: str, payload: dict) -> None:
         if self.data_lake is None:
             return
-        self.data_lake.write(
-            DataLakeRecord(
-                layer=layer,
-                dt=utc_now().date().isoformat(),
-                profile_id=self.profile_id,
-                venue="okx",
-                inst_id=inst_id,
-                stream=stream,
-                payload=payload,
-            )
+        batch = DatasetBatch(
+            layer=layer,
+            dt=utc_now().date().isoformat(),
+            profile_id=self.profile_id,
+            venue="okx",
+            inst_id=inst_id,
+            stream=stream,
+            rows=[payload],
+        )
+        path = self.data_lake.write_batch(batch)
+        self.data_lake.append_events(
+            f"{self.service_name}.events",
+            [
+                EventEnvelope(
+                    event_type=f"market_data.{stream}.upserted",
+                    source_service=self.service_name,
+                    profile_id=self.profile_id,
+                    inst_id=inst_id,
+                    payload={
+                        "layer": layer,
+                        "stream": stream,
+                        "inst_id": inst_id,
+                        "path": str(path),
+                        "payload": payload,
+                    },
+                )
+            ],
+        )
+
+    def persist_rows(
+        self,
+        *,
+        layer: str,
+        stream: str,
+        rows: list[dict],
+        inst_id: str | None = None,
+        run_id: str | None = None,
+        logical_name: str | None = None,
+    ) -> None:
+        if self.data_lake is None or not rows:
+            return
+        batch = DatasetBatch(
+            layer=layer,
+            dt=utc_now().date().isoformat(),
+            profile_id=self.profile_id,
+            venue="okx",
+            inst_id=inst_id,
+            stream=stream,
+            rows=rows,
+            run_id=run_id,
+            logical_name=logical_name,
+        )
+        path = self.data_lake.write_batch(batch)
+        self.data_lake.append_events(
+            f"{self.service_name}.events",
+            [
+                EventEnvelope(
+                    event_type=f"market_data.{stream}.batch_written",
+                    source_service=self.service_name,
+                    profile_id=self.profile_id,
+                    inst_id=inst_id,
+                    run_id=run_id,
+                    payload={
+                        "layer": layer,
+                        "stream": stream,
+                        "path": str(path),
+                        "row_count": len(rows),
+                    },
+                )
+            ],
         )
 
 
@@ -158,3 +222,45 @@ class ReplayRuntime(ServiceRuntime):
 
     def replay(self, payload: dict) -> dict:
         return {"status": "scheduled", "payload": payload}
+
+    def materialize_artifact(
+        self,
+        *,
+        run_id: str,
+        artifact_type: str,
+        rows: list[dict],
+        inst_id: str | None = None,
+    ) -> str | None:
+        if self.data_lake is None or not rows:
+            return None
+        batch = DatasetBatch(
+            layer="gold",
+            dt=utc_now().date().isoformat(),
+            profile_id=self.profile_id,
+            venue="okx",
+            inst_id=inst_id,
+            stream=artifact_type,
+            rows=rows,
+            run_id=run_id,
+            logical_name=artifact_type,
+        )
+        path = self.data_lake.write_batch(batch)
+        self.data_lake.append_events(
+            f"{self.service_name}.events",
+            [
+                EventEnvelope(
+                    event_type=f"run_artifact.{artifact_type}.materialized",
+                    source_service=self.service_name,
+                    profile_id=self.profile_id,
+                    run_id=run_id,
+                    inst_id=inst_id,
+                    payload={
+                        "run_id": run_id,
+                        "artifact_type": artifact_type,
+                        "path": str(path),
+                        "row_count": len(rows),
+                    },
+                )
+            ],
+        )
+        return str(path)
