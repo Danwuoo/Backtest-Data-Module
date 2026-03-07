@@ -18,5 +18,4 @@ test_okx_trading_platform.db
 okx_trading_platform.db
 *.db
 *results.json
-.env.live.example
-.env.demo.example
+.env.*.example
